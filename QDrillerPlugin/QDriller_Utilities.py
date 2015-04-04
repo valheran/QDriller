@@ -28,6 +28,9 @@ import numpy as np
 import collections
 import bisect
 
+from qgis.core import *
+from qgis.gui import *
+
 
 class DrillholeCoordBuilder:
     #a class which calculates the XYZ coords for an entire drillhole
@@ -381,6 +384,7 @@ def densifySurvey(data):
 	
 def calcXYZ(drillholes):
 #calculate XYZ coords for all drillholes
+    drillholeXYZ={}
     for holes in drillholes:
         holedata = drillholes[holes]
         collar = holedata[0]
@@ -390,9 +394,10 @@ def calcXYZ(drillholes):
         #print "drillhole %s built" % (holes)
     return drillholeXYZ
     
-def writeTraceLayer(drillXYZ, outfile, plan=True, sectionplane=None, loadcanvas=True): 
+def writeTraceLayer(drillXYZ, outfile, plan=True, sectionplane=None, loadcanvas=True, crs=None): 
     #create a layer to hold plan drill traces
-    layer = QgsVectorLayer("LineString?field=HoleID:string", "Drill traces", "memory")
+    uri = "LineString?field=HoleID:string&crs={}".format(crs)
+    layer = QgsVectorLayer(uri, "Drill traces", "memory")
     pr = layer.dataProvider()
     print outfile
     writer = QgsVectorFileWriter(outfile, "CP1250", pr.fields(), QGis.WKBLineString, pr.crs(), "ESRI Shapefile")
@@ -422,28 +427,29 @@ def writeTraceLayer(drillXYZ, outfile, plan=True, sectionplane=None, loadcanvas=
         layer= QgsVectorLayer(outfile, name, "ogr" )
         QgsMapLayerRegistry.instance().addMapLayer(layer)
 
-def createCollarLayer(drillholes, outfile, loadcanvas=True):
-	#function to create a shapefile of the collar locations
-	templayer = QgsVectorLayer("temp?field=HoleID:string&field=Easting:real&field=Northing:real&field=Elevation:real&field=EOH:real", "Collars", "memory")
-	temprov = templayer.dataProvider()
-	writer = QgsVectorFileWriter(outfile, "CP1250", temprov.fields(), QGis.WKBPoint, temprov.crs(), "ESRI Shapefile")
-	
-	for features in drillholes:
-		collardat = drillholes[features]
-		point = QgsPoint(float(collardat[0][0]), float(collardat[0][1]))
-		feat=QgsFeature()
-		feat.setGeometry(QgsGeometry.fromPoint(point))
-		feat.setAttributes([0, features])
-		feat.setAttributes([1, float(collardat[0][0])])
-		feat.setAttributes([1, float(collardat[0][1])])
-		feat.setAttributes([1, float(collardat[0][2])])
-		feat.setAttributes([1, float(collardat[0][3])])
-		writer.addFeature(feat)
-		
-	del writer
-	
-	if loadcanvas:
-		name = os.path.basename(outfile)
-		layer= QgsVectorLayer(outfile, name, "ogr" )
-		QgsMapLayerRegistry.instance().addMapLayer(layer)
-		
+def createCollarLayer(drillholes, outfile, loadcanvas=True, crs=None):
+    #function to create a shapefile of the collar locations
+    uri = "temp?field=HoleID:string&field=Easting:real&field=Northing:real&field=Elevation:real&field=EOH:real&crs={}".format(crs)
+    templayer = QgsVectorLayer(uri, "Collars", "memory")
+    temprov = templayer.dataProvider()
+    writer = QgsVectorFileWriter(outfile, "CP1250", temprov.fields(), QGis.WKBPoint, temprov.crs(), "ESRI Shapefile")
+
+    for features in drillholes:
+        collardat = drillholes[features]
+        point = QgsPoint(float(collardat[0][0]), float(collardat[0][1]))
+        feat=QgsFeature()
+        feat.setGeometry(QgsGeometry.fromPoint(point))
+        feat.setAttributes([0, features])
+        feat.setAttributes([1, float(collardat[0][0])])
+        feat.setAttributes([1, float(collardat[0][1])])
+        feat.setAttributes([1, float(collardat[0][2])])
+        feat.setAttributes([1, float(collardat[0][3])])
+        writer.addFeature(feat)
+        
+    del writer
+
+    if loadcanvas:
+        name = os.path.basename(outfile)
+        layer= QgsVectorLayer(outfile, name, "ogr" )
+        QgsMapLayerRegistry.instance().addMapLayer(layer)
+        

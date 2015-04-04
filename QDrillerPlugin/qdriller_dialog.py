@@ -25,6 +25,9 @@ import os
 
 from PyQt4 import QtGui, uic
 
+import qgis.core
+import qgis.gui
+
 #import module with all the technical backend code
 import QDriller_Utilities as QDUtils
 
@@ -60,16 +63,27 @@ class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
         self.btnRemlog.clicked.connect(self.removefromLoglist)
         #self.btnSavePrj.clicked.connect()
         self.btnSurvbrowse.clicked.connect(lambda:self.showFileBrowser("surveyfile"))
+        self.btnCRS.clicked.connect(self.fetchCRS)
         
         
         #Plan View Objects Buttons
         #self.btnCreateCol.clicked.connect()
-        #self.btnCreateTrace.clicked.connect()
+        self.btnCreateTrace.clicked.connect(lambda: QDrillerDialog.datastore.createPlanTrace())
+        #self.btnCreateLog.clicked.connect()
         
         ###LineEdit Signals###
         self.ledCol.textChanged.connect(lambda: self.setVariable("collarfile", self.ledCol.text()))
         self.ledProjDir.textChanged.connect(lambda: self.setVariable("projdir", self.ledProjDir.text()))
         self.ledSur.textChanged.connect(lambda: self.setVariable("surveyfile", self.ledSur.text()))
+        self.ledProjName.textChanged.connect(lambda: self.setVariable("projectname", self.ledProjName.text()))
+        
+        ###Checkbox Signals###
+        self.chkTrace2can.toggled.connect(lambda: self.setVariable("trace2can", self.chkTrace2can.isChecked()))
+        #self.chkColl2can.toggled.connect()
+        #self.chkLog2can.toggled.connect()
+        #self.chkEohlab.toggled.connect()
+        #self.chkDHTick.toggled.connect()
+        
         
         #functions for running the gui
         
@@ -98,6 +112,10 @@ class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
             QDrillerDialog.datastore.surveyfile = value
         elif target == "projdir":
             QDrillerDialog.datastore.projectdir = value
+        elif target == "projectname":
+            QDrillerDialog.datastore.projectname = value
+        elif target == "trace2can":
+            QDrillerDialog.datastore.trace2can = value
         
     def addtoLoglist(self):
         self.lstDHlogs.addItem(self.ledDHlogs.text())
@@ -127,6 +145,13 @@ class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
     def createProject(self):
         self.gpbxPlanview.setEnabled(True)
         QDrillerDialog.datastore.createProjectFile()
+        QDrillerDialog.datastore.calcDrillholes()
+        
+    def fetchCRS(self):
+        getCRS = qgis.gui.QgsGenericProjectionSelector()
+        getCRS.exec_()
+        QDrillerDialog.datastore.projectCRS = getCRS.selectedAuthId()
+        self.ledCRS.setText(QDrillerDialog.datastore.projectCRS)
         
     def printout(self):
         print QDrillerDialog.datastore.collarfile
@@ -136,14 +161,23 @@ class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
 #ie previous variable setups)
 class DataStore:
     def __init__(self):
+    
+        #variables to do with the backend calculations
+        #container for drillhole data as read from file
+        self.drillholes={}
+        #container for the calculated XYZ coordinates
+        self.drillholesXYZ={}
+        
         #variables for running project
         self.projectdir = None
         self.projectname = None
+        self.projectCRS = None
         
         #variables important to calculations/backend
         self.collarfile = None
         self.surveyfile = None
         self.logfiles = []
+        self.trace2can = True
         
         #variables for keeping track of created layers
         self.planLogLayers = None
@@ -157,3 +191,22 @@ class DataStore:
     def saveProject():
     #a function to write current settings to current project file
         empty=None
+        
+    def calcDrillholes(self):
+        #read in from file and create the drillhole arrays for use
+        self.drillholes = QDUtils.readFromFile(self.collarfile, self.surveyfile)
+        self.drillholesXYZ = QDUtils.calcXYZ(self.drillholes)
+        
+    def createPlanTrace(self):
+        #a function to create drill traces in plan view
+        outputlayer = r"{}\{}_traces_P.shp".format(self.projectdir, self.projectname)
+        #load2canvas = QDrillerDialog.chkTrace2can.isChecked()
+        print outputlayer
+        QDUtils.writeTraceLayer(self.drillholesXYZ, outputlayer, loadcanvas = self.trace2can, crs=self.projectCRS)
+        
+    def createPlanLog(self):
+    #function to create attributed logs in plan view
+        empty= None
+    def createCollarPoints(self):
+    #a function to create a shapefile of collars
+        empty = None
