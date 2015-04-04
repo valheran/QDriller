@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>803</width>
-    <height>569</height>
+    <width>823</width>
+    <height>587</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,8 +16,8 @@
   <widget class="QDialogButtonBox" name="button_box">
    <property name="geometry">
     <rect>
-     <x>440</x>
-     <y>520</y>
+     <x>460</x>
+     <y>550</y>
      <width>341</width>
      <height>32</height>
     </rect>
@@ -26,14 +26,14 @@
     <enum>Qt::Horizontal</enum>
    </property>
    <property name="standardButtons">
-    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Help|QDialogButtonBox::Ok</set>
    </property>
   </widget>
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
-     <x>40</x>
-     <y>20</y>
+     <x>20</x>
+     <y>10</y>
      <width>121</width>
      <height>31</height>
     </rect>
@@ -52,9 +52,14 @@
     <rect>
      <x>20</x>
      <y>60</y>
-     <width>371</width>
-     <height>421</height>
+     <width>291</width>
+     <height>501</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>8</pointsize>
+    </font>
    </property>
    <property name="title">
     <string>Project Setup</string>
@@ -62,8 +67,8 @@
    <widget class="QLabel" name="label_2">
     <property name="geometry">
      <rect>
-      <x>20</x>
-      <y>20</y>
+      <x>40</x>
+      <y>130</y>
       <width>46</width>
       <height>13</height>
      </rect>
@@ -75,8 +80,8 @@
    <widget class="QLabel" name="label_3">
     <property name="geometry">
      <rect>
-      <x>20</x>
-      <y>60</y>
+      <x>30</x>
+      <y>180</y>
       <width>61</width>
       <height>16</height>
      </rect>
@@ -88,8 +93,8 @@
    <widget class="QLabel" name="label_4">
     <property name="geometry">
      <rect>
-      <x>20</x>
-      <y>110</y>
+      <x>40</x>
+      <y>220</y>
       <width>81</width>
       <height>16</height>
      </rect>
@@ -101,8 +106,8 @@
    <widget class="QLabel" name="label_5">
     <property name="geometry">
      <rect>
-      <x>230</x>
-      <y>20</y>
+      <x>30</x>
+      <y>80</y>
       <width>91</width>
       <height>16</height>
      </rect>
@@ -111,51 +116,50 @@
      <string>Project Directory</string>
     </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit">
+   <widget class="QLineEdit" name="ledCol">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>40</y>
-      <width>113</width>
+      <x>20</x>
+      <y>150</y>
+      <width>161</width>
       <height>20</height>
      </rect>
     </property>
+    <property name="placeholderText">
+     <string>Select Collar File (csv)</string>
+    </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit_2">
+   <widget class="QLineEdit" name="ledSur">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>80</y>
-      <width>113</width>
+      <x>20</x>
+      <y>200</y>
+      <width>161</width>
       <height>20</height>
      </rect>
     </property>
+    <property name="placeholderText">
+     <string>Select Survey File (csv)</string>
+    </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit_3">
+   <widget class="QLineEdit" name="ledDHlogs">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>130</y>
-      <width>113</width>
+      <x>20</x>
+      <y>240</y>
+      <width>161</width>
       <height>20</height>
      </rect>
     </property>
-   </widget>
-   <widget class="QTextBrowser" name="textBrowser">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>190</y>
-      <width>141</width>
-      <height>181</height>
-     </rect>
+    <property name="placeholderText">
+     <string>Select Downhole logs (csv)</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton">
+   <widget class="QPushButton" name="btnAddLog">
     <property name="geometry">
      <rect>
-      <x>70</x>
-      <y>160</y>
+      <x>100</x>
+      <y>270</y>
       <width>51</width>
       <height>23</height>
      </rect>
@@ -164,11 +168,11 @@
      <string>Add</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_2">
+   <widget class="QPushButton" name="btnRemlog">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>160</y>
+      <x>40</x>
+      <y>270</y>
       <width>51</width>
       <height>23</height>
      </rect>
@@ -177,34 +181,24 @@
      <string>Remove</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_3">
+   <widget class="QLineEdit" name="ledProjDir">
     <property name="geometry">
      <rect>
-      <x>170</x>
-      <y>340</y>
-      <width>81</width>
-      <height>23</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Create Project</string>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="lineEdit_4">
-    <property name="geometry">
-     <rect>
-      <x>210</x>
-      <y>40</y>
-      <width>113</width>
+      <x>20</x>
+      <y>100</y>
+      <width>161</width>
       <height>20</height>
      </rect>
     </property>
+    <property name="placeholderText">
+     <string>Select Folder</string>
+    </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_4">
+   <widget class="QPushButton" name="btnColbrowse">
     <property name="geometry">
      <rect>
-      <x>130</x>
-      <y>40</y>
+      <x>190</x>
+      <y>150</y>
       <width>20</width>
       <height>23</height>
      </rect>
@@ -213,11 +207,11 @@
      <string>...</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_5">
+   <widget class="QPushButton" name="btnDHlogbrowse">
     <property name="geometry">
      <rect>
-      <x>130</x>
-      <y>130</y>
+      <x>190</x>
+      <y>240</y>
       <width>20</width>
       <height>23</height>
      </rect>
@@ -226,11 +220,11 @@
      <string>...</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_6">
+   <widget class="QPushButton" name="btnSurvbrowse">
     <property name="geometry">
      <rect>
-      <x>130</x>
-      <y>80</y>
+      <x>190</x>
+      <y>200</y>
       <width>20</width>
       <height>23</height>
      </rect>
@@ -239,11 +233,11 @@
      <string>...</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_7">
+   <widget class="QPushButton" name="btnPrjDirbrowse">
     <property name="geometry">
      <rect>
-      <x>330</x>
-      <y>40</y>
+      <x>190</x>
+      <y>100</y>
       <width>20</width>
       <height>23</height>
      </rect>
@@ -252,61 +246,63 @@
      <string>...</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_8">
+   <widget class="QListWidget" name="lstDHlogs">
     <property name="geometry">
      <rect>
-      <x>170</x>
-      <y>380</y>
-      <width>81</width>
-      <height>23</height>
+      <x>10</x>
+      <y>300</y>
+      <width>221</width>
+      <height>192</height>
      </rect>
     </property>
-    <property name="text">
-     <string>Load Project</string>
+    <property name="selectionMode">
+     <enum>QAbstractItemView::MultiSelection</enum>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_11">
+   <widget class="QLabel" name="label_8">
     <property name="geometry">
      <rect>
-      <x>270</x>
-      <y>380</y>
-      <width>75</width>
-      <height>23</height>
+      <x>20</x>
+      <y>20</y>
+      <width>211</width>
+      <height>51</height>
      </rect>
     </property>
     <property name="text">
-     <string>Save Project</string>
+     <string>It is recommended that all source text files are located in their own directory, and this can then be used for the Project Directory</string>
+    </property>
+    <property name="wordWrap">
+     <bool>true</bool>
     </property>
    </widget>
   </widget>
-  <widget class="QGroupBox" name="groupBox_2">
+  <widget class="QGroupBox" name="gpbxPlanview">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="geometry">
     <rect>
-     <x>450</x>
-     <y>60</y>
-     <width>301</width>
+     <x>500</x>
+     <y>80</y>
+     <width>261</width>
      <height>421</height>
     </rect>
    </property>
    <property name="title">
     <string>Plan View Objects</string>
    </property>
-   <widget class="QTextBrowser" name="textBrowser_2">
+   <property name="checkable">
+    <bool>false</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <widget class="QPushButton" name="btnCreateTrace">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>50</y>
-      <width>141</width>
-      <height>181</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="pushButton_9">
-    <property name="geometry">
-     <rect>
-      <x>180</x>
-      <y>80</y>
-      <width>91</width>
+      <x>20</x>
+      <y>70</y>
+      <width>111</width>
       <height>23</height>
      </rect>
     </property>
@@ -314,12 +310,12 @@
      <string>Create Log Trace</string>
     </property>
    </widget>
-   <widget class="QComboBox" name="comboBox">
+   <widget class="QComboBox" name="cmbTraceSelector">
     <property name="geometry">
      <rect>
-      <x>170</x>
-      <y>50</y>
-      <width>111</width>
+      <x>20</x>
+      <y>40</y>
+      <width>231</width>
       <height>22</height>
      </rect>
     </property>
@@ -328,7 +324,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>30</y>
+      <y>130</y>
       <width>81</width>
       <height>16</height>
      </rect>
@@ -337,11 +333,11 @@
      <string>Existing Layers</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox">
+   <widget class="QCheckBox" name="chklog2can">
     <property name="geometry">
      <rect>
-      <x>170</x>
-      <y>120</y>
+      <x>20</x>
+      <y>100</y>
       <width>101</width>
       <height>17</height>
      </rect>
@@ -349,12 +345,15 @@
     <property name="text">
      <string>Load to Canvas</string>
     </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
    </widget>
    <widget class="QLabel" name="label_7">
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>250</y>
+      <y>350</y>
       <width>71</width>
       <height>16</height>
      </rect>
@@ -363,21 +362,24 @@
      <string>Annotations</string>
     </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit_5">
+   <widget class="QLineEdit" name="ledDHtickspace">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>270</y>
+      <y>370</y>
       <width>31</width>
       <height>20</height>
      </rect>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_2">
+   <widget class="QCheckBox" name="chkDHTick">
     <property name="geometry">
      <rect>
       <x>50</x>
-      <y>270</y>
+      <y>370</y>
       <width>91</width>
       <height>17</height>
      </rect>
@@ -386,11 +388,14 @@
      <string>Downhole Ticks</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_3">
+   <widget class="QCheckBox" name="chkEohlab">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>50</x>
-      <y>290</y>
+      <y>390</y>
       <width>70</width>
       <height>17</height>
      </rect>
@@ -399,11 +404,11 @@
      <string>EOH Label</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_10">
+   <widget class="QPushButton" name="btnCreateCol">
     <property name="geometry">
      <rect>
-      <x>170</x>
-      <y>150</y>
+      <x>140</x>
+      <y>70</y>
       <width>111</width>
       <height>23</height>
      </rect>
@@ -412,8 +417,34 @@
      <string>Create Collar Points</string>
     </property>
    </widget>
+   <widget class="QCheckBox" name="chkColl2Can">
+    <property name="geometry">
+     <rect>
+      <x>140</x>
+      <y>100</y>
+      <width>101</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Load to Canvas</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QListWidget" name="lstExistingLayers">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>150</y>
+      <width>241</width>
+      <height>192</height>
+     </rect>
+    </property>
+   </widget>
   </widget>
-  <widget class="QPushButton" name="pushButton_12">
+  <widget class="QPushButton" name="btnSectionWindow">
    <property name="geometry">
     <rect>
      <x>590</x>
@@ -424,6 +455,68 @@
    </property>
    <property name="text">
     <string>Section Window</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btnCreatePrj">
+   <property name="geometry">
+    <rect>
+     <x>360</x>
+     <y>130</y>
+     <width>91</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Create Project</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btnLoadPrj">
+   <property name="geometry">
+    <rect>
+     <x>320</x>
+     <y>160</y>
+     <width>81</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Load Project</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btnSavePrj">
+   <property name="geometry">
+    <rect>
+     <x>410</x>
+     <y>160</y>
+     <width>81</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Save Project</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="ledProjName">
+   <property name="geometry">
+    <rect>
+     <x>330</x>
+     <y>90</y>
+     <width>141</width>
+     <height>20</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_9">
+   <property name="geometry">
+    <rect>
+     <x>330</x>
+     <y>70</y>
+     <width>171</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Project Name (used in file naming)</string>
    </property>
   </widget>
  </widget>
@@ -458,6 +551,22 @@
     <hint type="destinationlabel">
      <x>20</x>
      <y>20</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkDHTick</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>ledDHtickspace</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>545</x>
+     <y>338</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>475</x>
+     <y>339</y>
     </hint>
    </hints>
   </connection>
