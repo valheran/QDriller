@@ -23,7 +23,7 @@
 
 import os
 
-from PyQt4 import QtGui, uic
+from PyQt4 import QtGui, uic, QtCore
 
 import qgis.core
 import qgis.gui
@@ -36,6 +36,8 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
 
 
 class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
+
+    
     
     datastore = None
     def __init__(self, parent=None):
@@ -67,9 +69,11 @@ class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
         
         
         #Plan View Objects Buttons
-        #self.btnCreateCol.clicked.connect()
+        self.btnCreateCol.clicked.connect(lambda: QDrillerDialog.datastore.createCollarPoints())
         self.btnCreateTrace.clicked.connect(lambda: QDrillerDialog.datastore.createPlanTrace())
-        #self.btnCreateLog.clicked.connect()
+        self.btnCreateLog.clicked.connect(lambda: QDrillerDialog.datastore.createPlanLog())
+        self.cmbLogSelector.currentIndexChanged.connect(lambda:self.setVariable("logtarget", self.cmbLogSelector.currentText()))
+        self.btnDelLayer.clicked.connect(self.deleteLayerFromList)
         
         ###LineEdit Signals###
         self.ledCol.textChanged.connect(lambda: self.setVariable("collarfile", self.ledCol.text()))
@@ -79,11 +83,13 @@ class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
         
         ###Checkbox Signals###
         self.chkTrace2can.toggled.connect(lambda: self.setVariable("trace2can", self.chkTrace2can.isChecked()))
-        #self.chkColl2can.toggled.connect()
-        #self.chkLog2can.toggled.connect()
+        self.chkColl2can.toggled.connect(lambda: self.setVariable("coll2can", self.chkColl2can.isChecked()))
+        self.chkLog2can.toggled.connect(lambda: self.setVariable("log2can", self.chkLog2can.isChecked()))
         #self.chkEohlab.toggled.connect()
         #self.chkDHTick.toggled.connect()
         
+        ##Other Signals###
+        QDrillerDialog.datastore.fileCreated.connect(self.addtoLayerList)
         
         #functions for running the gui
         
@@ -116,6 +122,13 @@ class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
             QDrillerDialog.datastore.projectname = value
         elif target == "trace2can":
             QDrillerDialog.datastore.trace2can = value
+        elif target == "log2can":
+            QDrillerDialog.datastore.log2can = value
+        elif target == "coll2can":
+            QDrillerDialog.datastore.coll2can = value
+        elif target == "logtarget":
+            QDrillerDialog.datastore.logtarget = value
+            
         
     def addtoLoglist(self):
         self.lstDHlogs.addItem(self.ledDHlogs.text())
@@ -138,9 +151,41 @@ class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
         QDrillerDialog.datastore.logfiles = templist
         self.refreshGui()
         
+    
+    def addtoLayerList(self, ):
+        self.lstExistingLayers.clear()
+        for keys in QDrillerDialog.datastore.existingLayersDict:
+            newitem = self.lstExistingLayers.addItem(keys)
+            
+    def deleteLayerFromList(self):
+        # a function to delete log shapefile from disk, remove from List widget 
+        # and remove from the internal existing layers list
+        
+        #create list of layers to delete, and remove them from the widget
+        delList = []
+        for item in self.lstExistingLayers.selectedItems():
+            delList.append(item.text())
+            self.lstExistingLayers.takeItem(self.lstExistingLayers.row(item))
+        #close layers if they are open
+        for names in delList:
+            mapregList = qgis.core.QgsMapLayerRegistry.instance().mapLayersByName(names)
+            for lyr in mapregList:
+                qgis.core.QgsMapLayerRegistry.instance().removeMapLayer(lyr.id())
+                
+        #delete shapefiles
+        for names in delList:
+            path = QDrillerDialog.datastore.existingLayersDict[names]
+            qgis.core.QgsVectorFileWriter.deleteShapeFile(path)
+            #remove from existing layer dictionary
+            del QDrillerDialog.datastore.existingLayersDict[names]
+        #regenerate the list
+        self.lstExistingLayers.clear()
+        for keys in QDrillerDialog.datastore.existingLayersDict:
+            newitem = self.lstExistingLayers.addItem(keys)
+        
     def refreshGui(self):
-        self.cmbTraceSelector.clear()
-        self.cmbTraceSelector.addItems(QDrillerDialog.datastore.logfiles)
+        self.cmbLogSelector.clear()
+        self.cmbLogSelector.addItems(QDrillerDialog.datastore.logfiles)
         
     def createProject(self):
         self.gpbxPlanview.setEnabled(True)
@@ -148,10 +193,16 @@ class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
         QDrillerDialog.datastore.calcDrillholes()
         
     def fetchCRS(self):
+        #call on the QGIS GUI CRS selection Dialog
         getCRS = qgis.gui.QgsGenericProjectionSelector()
         getCRS.exec_()
-        QDrillerDialog.datastore.projectCRS = getCRS.selectedAuthId()
-        self.ledCRS.setText(QDrillerDialog.datastore.projectCRS)
+        #initialise blank CRS
+        selCRS = qgis.core.QgsCoordinateReferenceSystem()
+        #turn blank CRS into desired CRS using the authority identifier selected above
+        selCRS.createFromUserInput(getCRS.selectedAuthId())
+        #set the projectCRS to the selected CRS (this is a QgsCRS type object)
+        QDrillerDialog.datastore.projectCRS = selCRS
+        self.ledCRS.setText(QDrillerDialog.datastore.projectCRS.authid())
         
     def printout(self):
         print QDrillerDialog.datastore.collarfile
@@ -159,9 +210,12 @@ class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
 #class for handling the data inputs. This will store data inputs, as well as 
 #provide the capability for loading and saving projects 
 #ie previous variable setups)
-class DataStore:
+class DataStore(QtCore.QObject):
+    #define signals
+    fileCreated = QtCore.pyqtSignal()
+
     def __init__(self):
-    
+        super(DataStore, self).__init__()
         #variables to do with the backend calculations
         #container for drillhole data as read from file
         self.drillholes={}
@@ -171,16 +225,20 @@ class DataStore:
         #variables for running project
         self.projectdir = None
         self.projectname = None
-        self.projectCRS = None
+        self.projectCRS = None  #consider initialising this to a real projection?
         
         #variables important to calculations/backend
         self.collarfile = None
         self.surveyfile = None
         self.logfiles = []
+        self.logtarget = None
         self.trace2can = True
+        self.log2can = True
+        self.coll2can = True
         
         #variables for keeping track of created layers
-        self.planLogLayers = None
+        self.planLogLayers = []
+        self.existingLayersDict ={}
         
     def createProjectFile(self):
     #a function to create a project file to save settings etc to
@@ -193,20 +251,35 @@ class DataStore:
         empty=None
         
     def calcDrillholes(self):
-        #read in from file and create the drillhole arrays for use
+    #read in from file and create the drillhole arrays for use
         self.drillholes = QDUtils.readFromFile(self.collarfile, self.surveyfile)
         self.drillholesXYZ = QDUtils.calcXYZ(self.drillholes)
         
     def createPlanTrace(self):
-        #a function to create drill traces in plan view
-        outputlayer = r"{}\{}_traces_P.shp".format(self.projectdir, self.projectname)
-        #load2canvas = QDrillerDialog.chkTrace2can.isChecked()
-        print outputlayer
+    #a function to create drill traces in plan view
+        outputlayer = os.path.normpath(r"{}\{}_traces_P.shp".format(self.projectdir, self.projectname))
+        
         QDUtils.writeTraceLayer(self.drillholesXYZ, outputlayer, loadcanvas = self.trace2can, crs=self.projectCRS)
+        layername = os.path.splitext(os.path.basename(outputlayer))[0]
+        self.existingLayersDict[layername]= outputlayer
+        self.fileCreated.emit()
         
     def createPlanLog(self):
-    #function to create attributed logs in plan view
-        empty= None
+    #a function to create attributed logs in plan view
+        logname = os.path.splitext(os.path.basename(self.logtarget))[0]
+        outputlayer = os.path.normpath("{}\\{}_{}_P.shp".format(self.projectdir, self.projectname, logname))
+        
+        QDUtils.LogDrawer(self.drillholesXYZ, self.logtarget, outputlayer, plan=True, sectionplane=None, crs=self.projectCRS, loadcanvas=self.log2can)
+        
+        layername = os.path.splitext(os.path.basename(outputlayer))[0]
+        self.existingLayersDict[layername]= outputlayer
+        self.fileCreated.emit()
+        
     def createCollarPoints(self):
     #a function to create a shapefile of collars
-        empty = None
+        outputlayer = os.path.normpath(r"{}\{}_collars.shp".format(self.projectdir, self.projectname))
+        QDUtils.createCollarLayer(self.drillholes, outputlayer, loadcanvas=self.coll2can, crs=self.projectCRS)
+        
+        layername = os.path.splitext(os.path.basename(outputlayer))[0]
+        self.existingLayersDict[layername]= outputlayer
+        self.fileCreated.emit()

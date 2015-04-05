@@ -170,9 +170,12 @@ class IntervalCoordBuilder:
 
 class LogDrawer:
 #class to draw attributed traces of drillholes from tabular log data
-    def __init__(self, drillholedata, logfile, plan=True, sectionplane=None):
+    def __init__(self, drillholedata, logfile, outlogfile, plan=True, sectionplane=None, crs=None, loadcanvas=True):
         self.holecoords = drillholedata #set the XYZ coord data for the drillhole dataset
         self.logfile = logfile #path of the target logfile
+        self.outlogfile = outlogfile  #path for output file
+        self.projectCRS = crs
+        self.loadcanvas = loadcanvas
         self.tlayer = self.createEmptyLog()
         self.plantoggle = plan
         self.sectionplane = sectionplane
@@ -210,11 +213,11 @@ class LogDrawer:
         #load the log file 
         logdata = QgsVectorLayer(self.logfile, 'magsus', 'ogr')
         tprov=self.tlayer.dataProvider()
-        logprov=logdata.dataProvider()
+        logprov=logdata.dataProvider()  #probably dont need this  DELETE?
         #create iterator
         logiter = logdata.getFeatures()
-        #create the new shapefile TODO make the pathstring up from logfile name, perhaps even CRS from GUI?
-        writer = QgsVectorFileWriter("E:\GitHub\DrillHandler\log.shp", "CP1250",tprov.fields(), QGis.WKBLineString, logprov.crs(),'ESRI Shapefile')
+        #create the new shapefile 
+        writer = QgsVectorFileWriter(self.outlogfile, "CP1250",tprov.fields(), QGis.WKBLineString, self.projectCRS,'ESRI Shapefile')
         #iterate over all log entries and create the trace geometries into the new shapefile
         for logfeature in logiter:
             #initialise variables
@@ -254,9 +257,11 @@ class LogDrawer:
                 print "geometry could not be made for %s %s %s %s" % (holeid, lsampfrom, lsampto, e)
             #logfeatures.append(logfeat)
         del writer
-        #the following should probably be (re)moved in the final version to a more appropriate location
-        loglayer =QgsVectorLayer("E:\GitHub\DrillHandler\log.shp", "magsuslog", 'ogr')
-        QgsMapLayerRegistry.instance().addMapLayer(loglayer)
+        
+        if self.loadcanvas:
+            name = os.path.splitext(os.path.basename(self.outlogfile))[0]
+            loglayer =QgsVectorLayer(self.outlogfile, name, 'ogr')
+            QgsMapLayerRegistry.instance().addMapLayer(loglayer)
 	
 
 def planGeomBuilder(coordlist):
@@ -396,11 +401,12 @@ def calcXYZ(drillholes):
     
 def writeTraceLayer(drillXYZ, outfile, plan=True, sectionplane=None, loadcanvas=True, crs=None): 
     #create a layer to hold plan drill traces
-    uri = "LineString?field=HoleID:string&crs={}".format(crs)
+    crsString = crs.authid()
+    uri = "LineString?field=HoleID:string&crs={}".format(crsString)
     layer = QgsVectorLayer(uri, "Drill traces", "memory")
     pr = layer.dataProvider()
     print outfile
-    writer = QgsVectorFileWriter(outfile, "CP1250", pr.fields(), QGis.WKBLineString, pr.crs(), "ESRI Shapefile")
+    writer = QgsVectorFileWriter(outfile, "CP1250", pr.fields(), QGis.WKBLineString, crs, "ESRI Shapefile")
     #add features to layer
 
     for holes in drillXYZ:
@@ -416,23 +422,24 @@ def writeTraceLayer(drillXYZ, outfile, plan=True, sectionplane=None, loadcanvas=
         except TypeError:
             msg = "Hole %s has invalid geometry" % (holes)
             print msg
-        feat.setAttributes([0,holes])
+        feat.setAttributes([str(holes)])
         writer.addFeature(feat)
         
     del writer
       
     #add layer to map canvas  
     if loadcanvas:
-        name = os.path.basename(outfile)
+        name = os.path.splitext(os.path.basename(outfile))[0]
         layer= QgsVectorLayer(outfile, name, "ogr" )
         QgsMapLayerRegistry.instance().addMapLayer(layer)
 
 def createCollarLayer(drillholes, outfile, loadcanvas=True, crs=None):
     #function to create a shapefile of the collar locations
-    uri = "temp?field=HoleID:string&field=Easting:real&field=Northing:real&field=Elevation:real&field=EOH:real&crs={}".format(crs)
+    crsString = crs.authid()
+    uri = "temp?field=HoleID:string&field=Easting:real&field=Northing:real&field=Elevation:real&field=EOH:real&crs={}".format(crsString)
     templayer = QgsVectorLayer(uri, "Collars", "memory")
     temprov = templayer.dataProvider()
-    writer = QgsVectorFileWriter(outfile, "CP1250", temprov.fields(), QGis.WKBPoint, temprov.crs(), "ESRI Shapefile")
+    writer = QgsVectorFileWriter(outfile, "CP1250", temprov.fields(), QGis.WKBPoint, crs, "ESRI Shapefile")
 
     for features in drillholes:
         collardat = drillholes[features]
@@ -449,7 +456,7 @@ def createCollarLayer(drillholes, outfile, loadcanvas=True, crs=None):
     del writer
 
     if loadcanvas:
-        name = os.path.basename(outfile)
+        name = os.path.splitext(os.path.basename(outfile))[0]
         layer= QgsVectorLayer(outfile, name, "ogr" )
         QgsMapLayerRegistry.instance().addMapLayer(layer)
         

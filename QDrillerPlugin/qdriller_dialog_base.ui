@@ -310,7 +310,7 @@
      <string>Create Log Trace</string>
     </property>
    </widget>
-   <widget class="QComboBox" name="cmbTraceSelector">
+   <widget class="QComboBox" name="cmbLogSelector">
     <property name="geometry">
      <rect>
       <x>30</x>
@@ -323,8 +323,8 @@
    <widget class="QLabel" name="label_6">
     <property name="geometry">
      <rect>
-      <x>30</x>
-      <y>160</y>
+      <x>20</x>
+      <y>170</y>
       <width>81</width>
       <height>16</height>
      </rect>
@@ -417,7 +417,7 @@
      <string>Create Collar Points</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="chkColl2Can">
+   <widget class="QCheckBox" name="chkColl2can">
     <property name="geometry">
      <rect>
       <x>150</x>
@@ -437,9 +437,9 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>180</y>
+      <y>201</y>
       <width>241</width>
-      <height>192</height>
+      <height>171</height>
      </rect>
     </property>
    </widget>
@@ -470,6 +470,19 @@
     </property>
     <property name="checked">
      <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btnDelLayer">
+    <property name="geometry">
+     <rect>
+      <x>160</x>
+      <y>170</y>
+      <width>75</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Delete Layer</string>
     </property>
    </widget>
   </widget>
