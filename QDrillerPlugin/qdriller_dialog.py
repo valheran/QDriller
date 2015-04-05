@@ -54,6 +54,7 @@ class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
         QDrillerDialog.datastore = DataStore()
        
         ###set up button actions###
+        self.btnSectionWindow.clicked.connect(self.openSectionView)
         #Project Setup Buttons
         
         self.btnAddLog.clicked.connect(self.addtoLoglist)
@@ -204,6 +205,10 @@ class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
         QDrillerDialog.datastore.projectCRS = selCRS
         self.ledCRS.setText(QDrillerDialog.datastore.projectCRS.authid())
         
+    def openSectionView(self):
+        self.sectionview = SectionView()
+        self.sectionview.show()
+        
     def printout(self):
         print QDrillerDialog.datastore.collarfile
         
@@ -283,3 +288,42 @@ class DataStore(QtCore.QObject):
         layername = os.path.splitext(os.path.basename(outputlayer))[0]
         self.existingLayersDict[layername]= outputlayer
         self.fileCreated.emit()
+        
+        
+SECT_FORM_CLASS, _ = uic.loadUiType(os.path.join(
+    os.path.dirname(__file__), 'sectionview_base.ui'))
+
+
+class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
+    def __init__(self, parent=None):
+        """Constructor."""
+        super(SectionView, self).__init__(parent)
+        # Set up the user interface from Designer.
+        # After setupUI you can access any designer object by doing
+        # self.<objectname>, and you can use autoconnect slots - see
+        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
+        # #widgets-and-dialogs-with-auto-connect
+        self.setupUi(self)
+
+        #initialise mapcanvas
+        self.sectionCanvas = qgis.gui.QgsMapCanvas()
+        #self.sectionCanvas.setCanvasColour(Qt.white)
+        self.lytMap.addWidget(self.sectionCanvas)
+        
+        
+            
+        
+GEN_FORM_CLASS, _ = uic.loadUiType(os.path.join(
+os.path.dirname(__file__), 'generatesection_dialog_base.ui'))
+
+
+class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
+    def __init__(self, parent=None):
+        """Constructor."""
+        super(GenerateSection, self).__init__(parent)
+        # Set up the user interface from Designer.
+        # After setupUI you can access any designer object by doing
+        # self.<objectname>, and you can use autoconnect slots - see
+        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
+        # #widgets-and-dialogs-with-auto-connect
+        self.setupUi(self)
