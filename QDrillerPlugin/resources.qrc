@@ -1,5 +1,29 @@
 <RCC>
-    <qresource prefix="/plugins/QDriller" >
-        <file>icon.png</file>
-    </qresource>
+  <qresource prefix="/plugins/QDriller">
+    <file>icons/mActionFileSave.svg</file>
+    <file>icons/mActionIdentify.svg</file>
+    <file>icons/mActionMeasure.png</file>
+    <file>icons/mActionMeasureAngle.png</file>
+    <file>icons/mActionMeasureArea.png</file>
+    <file>icons/mActionPan.svg</file>
+    <file>icons/mActionPanHighlightFeature.svg</file>
+    <file>icons/mActionPanToSelected.svg</file>
+    <file>icons/mActionSaveMapAsImage.png</file>
+    <file>icons/mActionSelect.svg</file>
+    <file>icons/mActionSelectFreehand.svg</file>
+    <file>icons/mActionSelectPolygon.svg</file>
+    <file>icons/mActionSelectRadius.svg</file>
+    <file>icons/mActionSelectRectangle.svg</file>
+    <file>icons/mActionTouch.svg</file>
+    <file>icons/mActionUnselectAttributes.png</file>
+    <file>icons/mActionZoomFullExtent.svg</file>
+    <file>icons/mActionZoomIn.svg</file>
+    <file>icons/mActionZoomLast.svg</file>
+    <file>icons/mActionZoomNext.svg</file>
+    <file>icons/mActionZoomOut.svg</file>
+    <file>icons/mActionZoomToArea.svg</file>
+    <file>icons/mActionZoomToLayer.svg</file>
+    <file>icons/mActionZoomToSelected.svg</file>
+    <file>icon.png</file>
+  </qresource>
 </RCC>

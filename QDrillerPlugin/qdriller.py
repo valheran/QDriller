@@ -22,12 +22,12 @@
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt4.QtGui import QAction, QIcon
-# Initialize Qt resources from file resources.py
-import resources_rc
+
 # Import the code for the dialog
 from qdriller_dialog import QDrillerDialog
 import os.path
-
+# Initialize Qt resources from file resources.py
+import resources
 
 class QDriller:
     """QGIS Plugin Implementation."""

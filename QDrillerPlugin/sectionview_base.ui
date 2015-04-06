@@ -97,7 +97,69 @@
    </property>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionZoom_in">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/icons/mActionZoomIn.svg</normaloff>:/plugins/QDriller/icons/mActionZoomIn.svg</iconset>
+   </property>
+   <property name="text">
+    <string>zoom_in</string>
+   </property>
+   <property name="toolTip">
+    <string>Zoom In</string>
+   </property>
+  </action>
+  <action name="actionZoom_out">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/icons/mActionZoomOut.svg</normaloff>:/plugins/QDriller/icons/mActionZoomOut.svg</iconset>
+   </property>
+   <property name="text">
+    <string>zoom_out</string>
+   </property>
+   <property name="toolTip">
+    <string>Zoom Out</string>
+   </property>
+  </action>
+  <action name="actionTouch">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/icons/mActionTouch.svg</normaloff>:/plugins/QDriller/icons/mActionTouch.svg</iconset>
+   </property>
+   <property name="text">
+    <string>touch</string>
+   </property>
+   <property name="toolTip">
+    <string>Touch Zoom and Pan</string>
+   </property>
+  </action>
+  <action name="actionPan">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/icons/mActionPan.svg</normaloff>:/plugins/QDriller/icons/mActionPan.svg</iconset>
+   </property>
+   <property name="text">
+    <string>pan</string>
+   </property>
+   <property name="toolTip">
+    <string>Pan Map</string>
+   </property>
+  </action>
  </widget>
- <resources/>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
  <connections/>
 </ui>

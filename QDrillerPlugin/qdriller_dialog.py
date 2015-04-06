@@ -24,6 +24,7 @@
 import os
 
 from PyQt4 import QtGui, uic, QtCore
+from PyQt4.QtGui import * 
 
 import qgis.core
 import qgis.gui
@@ -311,8 +312,40 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.lytMap.addWidget(self.sectionCanvas)
         
         
-            
+        # create toolbar
+        self.toolbar = self.addToolBar("Map Tools")
+        self.toolbar.addAction(self.actionZoom_in)
+        self.toolbar.addAction(self.actionZoom_out)
+        self.toolbar.addAction(self.actionTouch)
+        self.toolbar.addAction(self.actionPan)
+
+        # connect the tool(s)
+        self.actionZoom_in.triggered.connect(self.zoom_in)
+        self.actionPan.triggered.connect(self.mapPan)
         
+        # create the map tool(s)
+        self.tool_zoomin = qgis.gui.QgsMapToolZoom(self.sectionCanvas, False)
+        self.tool_pan = qgis.gui.QgsMapToolPan(self.sectionCanvas)
+        
+        layer = qgis.core.QgsVectorLayer("E:\GitHub\test\test_collars.shp", "test collars", 'ogr')
+        qgis.core.QgsMapLayerRegistry.instance().addMapLayer(layer)
+        canvas_layer = qgis.gui.QgsMapCanvasLayer(layer)
+        canvas_layer.setVisible(True)
+        print "layer visibility", canvas_layer.isVisible()
+        self.sectionCanvas.setLayerSet([canvas_layer])
+        self.sectionCanvas.zoomToFullExtent()
+        self.sectionCanvas.refresh()
+        
+    def mapPan(self):
+        self.sectionCanvas.setMapTool(self.tool_pan)
+        print "pan action triggered"
+        centre = self.sectionCanvas.center()
+        print "centre of canvas", centre.toString()
+        
+    def zoom_in(self): #could these type things be set up in a lambda connection
+        self.sectionCanvas.setMapTool(self.tool_zoomin)
+        print "zoom in action triggered"
+            
 GEN_FORM_CLASS, _ = uic.loadUiType(os.path.join(
 os.path.dirname(__file__), 'generatesection_dialog_base.ui'))
 
