@@ -36,7 +36,7 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'qdriller_dialog_base.ui'))
 
 
-class QDrillerDialog(QtGui.QDialog, FORM_CLASS):
+class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
 
     
     
@@ -321,19 +321,28 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
 
         # connect the tool(s)
         self.actionZoom_in.triggered.connect(self.zoom_in)
+        self.actionZoom_out.triggered.connect(self.zoom_out)
         self.actionPan.triggered.connect(self.mapPan)
+        self.actionTouch.triggered.connect(self.mapTouch)
         
         # create the map tool(s)
         self.tool_zoomin = qgis.gui.QgsMapToolZoom(self.sectionCanvas, False)
+        self.tool_zoomout = qgis.gui.QgsMapToolZoom(self.sectionCanvas, True)
         self.tool_pan = qgis.gui.QgsMapToolPan(self.sectionCanvas)
+        self.tool_touch = qgis.gui.QgsMapToolTouch(self.sectionCanvas)
         
-        layer = qgis.core.QgsVectorLayer("E:\GitHub\test\test_collars.shp", "test collars", 'ogr')
-        qgis.core.QgsMapLayerRegistry.instance().addMapLayer(layer)
+        layer = qgis.core.QgsVectorLayer(r"E:\GitHub\Test\test_collars.shp", "test collars", 'ogr')
+        print "layer valid", layer.isValid()
+        qgis.core.QgsMapLayerRegistry.instance().addMapLayer(layer, addToLegend=False)
+        print "register", qgis.core.QgsMapLayerRegistry.instance().count()
         canvas_layer = qgis.gui.QgsMapCanvasLayer(layer)
         canvas_layer.setVisible(True)
         print "layer visibility", canvas_layer.isVisible()
         self.sectionCanvas.setLayerSet([canvas_layer])
-        self.sectionCanvas.zoomToFullExtent()
+        extent = layer.extent()
+        print "layer extents", extent
+        self.sectionCanvas.setExtent(extent)
+        print "canvas extent", self.sectionCanvas.extent()
         self.sectionCanvas.refresh()
         
     def mapPan(self):
@@ -342,9 +351,19 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         centre = self.sectionCanvas.center()
         print "centre of canvas", centre.toString()
         
+    def mapTouch(self):
+        self.sectionCanvas.setMapTool(self.tool_touch)
+        print "touch action triggered"
+        centre = self.sectionCanvas.center()
+        print "centre of canvas", centre.toString()
+        
     def zoom_in(self): #could these type things be set up in a lambda connection
         self.sectionCanvas.setMapTool(self.tool_zoomin)
         print "zoom in action triggered"
+        
+    def zoom_out(self): #could these type things be set up in a lambda connection
+        self.sectionCanvas.setMapTool(self.tool_zoomout)
+        print "zoom out action triggered"
             
 GEN_FORM_CLASS, _ = uic.loadUiType(os.path.join(
 os.path.dirname(__file__), 'generatesection_dialog_base.ui'))

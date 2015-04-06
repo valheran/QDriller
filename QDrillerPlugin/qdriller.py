@@ -184,9 +184,9 @@ class QDriller:
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
-        result = self.dlg.exec_()
+        #result = self.dlg.exec_()
         # See if OK was pressed
-        if result:
+        #if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
-            pass
+        #    pass
