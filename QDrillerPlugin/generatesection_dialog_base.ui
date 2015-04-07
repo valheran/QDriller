@@ -26,7 +26,7 @@
     <enum>Qt::Horizontal</enum>
    </property>
    <property name="standardButtons">
-    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+    <set>QDialogButtonBox::Close|QDialogButtonBox::Help</set>
    </property>
   </widget>
   <widget class="QGroupBox" name="groupBox">
@@ -41,7 +41,7 @@
    <property name="title">
     <string>Define Section</string>
    </property>
-   <widget class="QLineEdit" name="lineEdit">
+   <widget class="QLineEdit" name="ledOriginX">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -54,7 +54,7 @@
      <string/>
     </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit_2">
+   <widget class="QLineEdit" name="ledOriginY">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -64,7 +64,7 @@
      </rect>
     </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit_3">
+   <widget class="QLineEdit" name="ledAzi">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -74,7 +74,7 @@
      </rect>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton">
+   <widget class="QPushButton" name="btnOriginX">
     <property name="geometry">
      <rect>
       <x>130</x>
@@ -87,7 +87,7 @@
      <string/>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_2">
+   <widget class="QPushButton" name="btnOriginY">
     <property name="geometry">
      <rect>
       <x>130</x>
@@ -100,7 +100,7 @@
      <string/>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_3">
+   <widget class="QPushButton" name="btnFromLine">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -148,17 +148,17 @@
    <widget class="QLabel" name="label_3">
     <property name="geometry">
      <rect>
-      <x>20</x>
+      <x>10</x>
       <y>250</y>
-      <width>81</width>
+      <width>111</width>
       <height>16</height>
      </rect>
     </property>
     <property name="text">
-     <string>Envelope Width</string>
+     <string>Envelope Width +/-m</string>
     </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit_4">
+   <widget class="QLineEdit" name="ledEnv">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -181,7 +181,7 @@
      <string>Section Name</string>
     </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit_5">
+   <widget class="QLineEdit" name="ledSecName">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -191,7 +191,7 @@
      </rect>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox">
+   <widget class="QCheckBox" name="chkSurf">
     <property name="geometry">
      <rect>
       <x>210</x>
@@ -220,7 +220,7 @@
      <bool>true</bool>
     </property>
    </widget>
-   <widget class="QComboBox" name="comboBox">
+   <widget class="QComboBox" name="cmbDem">
     <property name="geometry">
      <rect>
       <x>210</x>
@@ -231,7 +231,7 @@
     </property>
    </widget>
   </widget>
-  <widget class="QListWidget" name="listWidget">
+  <widget class="QListWidget" name="lstSelDH">
    <property name="geometry">
     <rect>
      <x>560</x>
@@ -241,7 +241,7 @@
     </rect>
    </property>
   </widget>
-  <widget class="QListWidget" name="listWidget_2">
+  <widget class="QListWidget" name="lstAvailDH">
    <property name="geometry">
     <rect>
      <x>370</x>
@@ -251,7 +251,7 @@
     </rect>
    </property>
   </widget>
-  <widget class="QPushButton" name="pushButton_4">
+  <widget class="QPushButton" name="btnAddDH">
    <property name="geometry">
     <rect>
      <x>480</x>
@@ -264,7 +264,7 @@
     <string>Add</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="pushButton_5">
+  <widget class="QPushButton" name="btnRemDH">
    <property name="geometry">
     <rect>
      <x>480</x>
@@ -303,7 +303,7 @@
     <string>Selected Drillholes</string>
    </property>
   </widget>
-  <widget class="QListWidget" name="listWidget_3">
+  <widget class="QListWidget" name="lstSelLogs">
    <property name="geometry">
     <rect>
      <x>560</x>
@@ -312,8 +312,11 @@
      <height>141</height>
     </rect>
    </property>
+   <property name="selectionMode">
+    <enum>QAbstractItemView::MultiSelection</enum>
+   </property>
   </widget>
-  <widget class="QPushButton" name="pushButton_6">
+  <widget class="QPushButton" name="btnAddDHLog">
    <property name="geometry">
     <rect>
      <x>480</x>
@@ -345,7 +348,7 @@
     <bool>true</bool>
    </property>
   </widget>
-  <widget class="QListWidget" name="listWidget_4">
+  <widget class="QListWidget" name="lstAvailLogs">
    <property name="geometry">
     <rect>
      <x>370</x>
@@ -354,8 +357,11 @@
      <height>141</height>
     </rect>
    </property>
+   <property name="selectionMode">
+    <enum>QAbstractItemView::MultiSelection</enum>
+   </property>
   </widget>
-  <widget class="QPushButton" name="pushButton_7">
+  <widget class="QPushButton" name="btnRemDHLog">
    <property name="geometry">
     <rect>
      <x>480</x>
@@ -385,6 +391,19 @@
    </property>
    <property name="wordWrap">
     <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btnDraw">
+   <property name="geometry">
+    <rect>
+     <x>160</x>
+     <y>340</y>
+     <width>151</width>
+     <height>51</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Generate Cross Section</string>
    </property>
   </widget>
  </widget>

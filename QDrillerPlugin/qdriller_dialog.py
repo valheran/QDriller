@@ -145,7 +145,9 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
         
     def removefromLoglist(self):
         for item in self.lstDHlogs.selectedItems():
-            self.lstDHlogs.takeItem(self.lstDHlogs.row(item))
+            trash = self.lstDHlogs.takeItem(self.lstDHlogs.row(item))
+            trash = None
+            
         templist = []    
         for i in xrange(self.lstDHlogs.count()):
             templist.append(self.lstDHlogs.item(i).text())
@@ -167,7 +169,8 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
         delList = []
         for item in self.lstExistingLayers.selectedItems():
             delList.append(item.text())
-            self.lstExistingLayers.takeItem(self.lstExistingLayers.row(item))
+            trash = self.lstExistingLayers.takeItem(self.lstExistingLayers.row(item))
+            trash = None
         #close layers if they are open
         for names in delList:
             mapregList = qgis.core.QgsMapLayerRegistry.instance().mapLayersByName(names)
@@ -236,7 +239,7 @@ class DataStore(QtCore.QObject):
         #variables important to calculations/backend
         self.collarfile = None
         self.surveyfile = None
-        self.logfiles = []
+        self.logfiles = []      #list of downhole log file paths
         self.logtarget = None
         self.trace2can = True
         self.log2can = True
@@ -290,6 +293,9 @@ class DataStore(QtCore.QObject):
         self.existingLayersDict[layername]= outputlayer
         self.fileCreated.emit()
         
+    def selectCollars(self, envelope):
+        #a function to select collars that fall within an envelope, and return a drillhole XYS dictionary
+        pass
         
 SECT_FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'sectionview_base.ui'))
@@ -310,20 +316,38 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.sectionCanvas = qgis.gui.QgsMapCanvas()
         #self.sectionCanvas.setCanvasColour(Qt.white)
         self.lytMap.addWidget(self.sectionCanvas)
+        self.crs= qgis.core.QgsCoordinateReferenceSystem()
+        self.crs.createFromProj4("+proj=utm +zone=54 +south +ellps=aust_SA +units=m +no_defs")
+        self.sectionCanvas.setDestinationCrs(self.crs)
+        self.sectionCanvas.setMapUnits(0)
         
+        #setup scale comboboc widget
+        self.scaleBox = qgis.gui.QgsScaleWidget()
+        self.scaleBox.setMapCanvas(self.sectionCanvas)
+        self.lytScale.addWidget(self.scaleBox)
+        self.sectionCanvas.scaleChanged.connect(self.scaleBox.setScaleFromCanvas)
+        self.scaleBox.scaleChanged.connect(lambda: self.sectionCanvas.zoomScale(self.scaleBox.scale())) #doesnt seem to work yet
+        
+        #setup mouse coord tracking
+        self.sectionCanvas.xyCoordinates.connect(self.dispCoords)
         
         # create toolbar
-        self.toolbar = self.addToolBar("Map Tools")
-        self.toolbar.addAction(self.actionZoom_in)
-        self.toolbar.addAction(self.actionZoom_out)
-        self.toolbar.addAction(self.actionTouch)
-        self.toolbar.addAction(self.actionPan)
+        self.navToolbar = self.addToolBar("Map Tools")
+        self.mapNavActions = QActionGroup(self)
+        self.mapNavActions.addAction(self.actionZoom_in)
+        self.mapNavActions.addAction(self.actionZoom_out)
+        self.mapNavActions.addAction(self.actionTouch)
+        self.mapNavActions.addAction(self.actionPan)
+        self.navToolbar.addActions(self.mapNavActions.actions())
+        self.sectionBar = self.addToolBar("Section Tools")
+        self.sectionBar.addAction(self.actionGenerateSection)
 
         # connect the tool(s)
         self.actionZoom_in.triggered.connect(self.zoom_in)
         self.actionZoom_out.triggered.connect(self.zoom_out)
         self.actionPan.triggered.connect(self.mapPan)
         self.actionTouch.triggered.connect(self.mapTouch)
+        self.actionGenerateSection.triggered.connect(self.genSec)
         
         # create the map tool(s)
         self.tool_zoomin = qgis.gui.QgsMapToolZoom(self.sectionCanvas, False)
@@ -354,8 +378,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
     def mapTouch(self):
         self.sectionCanvas.setMapTool(self.tool_touch)
         print "touch action triggered"
-        centre = self.sectionCanvas.center()
-        print "centre of canvas", centre.toString()
+        self.mapInformation()
         
     def zoom_in(self): #could these type things be set up in a lambda connection
         self.sectionCanvas.setMapTool(self.tool_zoomin)
@@ -364,6 +387,27 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
     def zoom_out(self): #could these type things be set up in a lambda connection
         self.sectionCanvas.setMapTool(self.tool_zoomout)
         print "zoom out action triggered"
+        
+    def dispCoords(self, point):
+        xCoord = int(point.x())
+        yCoord = int(point.y())
+        display = "{}m,{}mRL".format(xCoord, yCoord)
+        self.ledCoord.setText(display)
+        
+    def genSec(self):
+        print "gensec action triggered"
+        self.genSecDialog = GenerateSection()
+        self.genSecDialog.show()
+        
+    def mapInformation(self):
+        print "canvas extent", self.sectionCanvas.extent()
+        self.sectionCanvas.refresh()
+        print "canvas unit", self.sectionCanvas.mapUnits()
+        centre = self.sectionCanvas.center()
+        print "centre of canvas", centre.toString()
+        print "canvas projection ", self.sectionCanvas.mapSettings().destinationCrs().authid()
+        print "Canvas Scale", self.sectionCanvas.scale()
+        print"canvas setting scale", self.sectionCanvas.mapSettings().scale()
             
 GEN_FORM_CLASS, _ = uic.loadUiType(os.path.join(
 os.path.dirname(__file__), 'generatesection_dialog_base.ui'))
@@ -379,3 +423,138 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        
+        #initialise variables to store settings
+        self.secName = None
+        self.originX = None
+        self.originY = None
+        self.secAzi = None      #may need to investigate the maths behind this more to get facing
+        self.secFacing = None
+        self.envWidth = None
+        self.holes2plotXYZ = None
+        self.availLogs ={}
+        self.selectedLogs = []
+        
+        
+        
+        
+        #set the crs using the same hardcode as in the section viewer
+        self.crs= qgis.core.QgsCoordinateReferenceSystem()
+        self.crs.createFromProj4("+proj=utm +zone=54 +south +ellps=aust_SA +units=m +no_defs")
+        
+        #connect GUI buttons
+        self.btnAddDHLog.clicked.connect(self.addDHLog)
+        self.btnRemDHLog.clicked.connect(self.remDHLog)
+        self.btnDraw.clicked.connect(self.generateSection)
+        
+        
+        #connect GUI with variables
+        self.ledSecName.textChanged.connect(lambda: self.setVars("name", self.ledSecName.text()))
+        self.ledOriginX.textChanged.connect(lambda: self.setVars("oringinX", self.ledOriginX.text()))
+        self.ledOriginY.textChanged.connect(lambda: self.setVars("originY", self.ledOriginY.text()))
+        self.ledAzi.textChanged.connect(lambda: self.setvars("azi", self.ledAzi.text()))
+        self.ledEnv.textChanged.connect(lambda: self.setVars("Env", self.ledEnv.text()))
+        
+        #populate lists
+        self.populateDHloglist()
+        
+    def setVars(self, target, value):
+        
+        if target == "originx":
+           self.originX = value
+        elif target == "originy":
+            self.originY = value
+        elif target == "azi":
+            self.secAzi = value
+        elif target == "name":
+            self.SecName = value
+        elif target == "Env":
+            self.envWidth = value
+            
+    def subsetDrillholes(self):
+        #create the subset of drill XYZ to plot
+        self.holes2plotXYZ = QDrillerDialog.datastore.drillholesXYZ #placeholder only, need to make function to perform subset
+        
+        
+    def populateDHloglist(self):
+        
+        availLogNames =[]
+        
+        for entry in QDrillerDialog.datastore.logfiles:
+            name = os.path.splitext(os.path.basename(entry))[0]
+            self.availLogs[name] = entry
+            availLogNames.append(name)
+        
+        for item in availLogNames:
+            self.lstAvailLogs.addItem(item)
+            
+    def addDHLog(self):
+        print "addDHLog function called"
+        for item in self.lstAvailLogs.selectedItems():
+            self.lstSelLogs.addItem(item.text())
+       
+        
+    def remDHLog(self):
+        print "remDHLog function called"
+        
+        for item in self.lstSelLogs.selectedItems():
+            trash = self.lstSelLogs.takeItem(self.lstSelLogs.row(item))
+            trash = None
+
+    def generateSection(self):
+        #create directory to store the relevant section files
+        ### maybe at some point put in here a warning if the directory already exists?
+        
+        #run the methods to draw the files
+        self.subsetDrillholes()
+        #create drill traces
+        outputlayer = os.path.normpath(r"{}\{}\{}_traces_S.shp".format(
+                                        QDrillerDialog.datastore.projectdir,self.SecName,
+                                        QDrillerDialog.datastore.projectname)
+                                        )
+        #create directory to store the relevant section files
+        ### maybe at some point put in here a warning if the directory already exists?
+        sectiondirectory = os.path.dirname(outlayer)
+        try: 
+            os.makedirs(sectiondirectory)
+        except OSError:
+            if not os.path.isdir(sectiondirectory):
+                raise
+
+        QDUtils.writeTraceLayer(self.holes2plotXYZ, outputlayer, loadcanvas=False, crs=self.crs)
+        #layername = os.path.splitext(os.path.basename(outputlayer))[0]
+       # self.existingLayersDict[layername]= outputlayer
+       
+        # here need to include cose to write to section definition file
+        
+        #create downhole logs
+        #Pull the desired downhole logs
+        logtargetDict = {}
+        for i in xrange(self.lstSelLogs.count()):
+            name = self.lstSelLogs.item(i).text()
+            logtargetDict[name] = self.availLogs[name] 
+            
+        #code to generate log 
+        for k in logtargetDict:
+            
+            logname = k
+            logtarget = logtargetDict[k]
+            outputlayer = os.path.normpath("{}\\{}\\{}_{}_S.shp".format(QDrillerDialog.datastore.projectdir,
+                                            QDrillerDialog.datastore.projectname, self.Secname, logname)
+                                            )
+            secplane = [self.originX, self.originY, self.secAzi]
+            
+            QDUtils.LogDrawer(self.holes2plotXYZ, logtarget, outputlayer, plan=False, 
+                                sectionplane=secplane, crs=self.crs, loadcanvas=False)
+            
+            #layername = os.path.splitext(os.path.basename(outputlayer))[0]
+            #self.existingLayersDict[layername]= outputlayer
+            #self.fileCreated.emit()
+            
+             # here need to include code to write to section definition file
+             
+             
+    def writeSectionFile(self):
+        #create a section "save file" containing all the parameters for quick handling in Section Viewer
+        #this also needs to be sent back to SectionViewer GUI for use
+        pass
