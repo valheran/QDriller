@@ -23,6 +23,11 @@
 
 import os
 
+try:
+    import xml.etree.cElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
+
 from PyQt4 import QtGui, uic, QtCore
 from PyQt4.QtGui import * 
 
@@ -248,6 +253,7 @@ class DataStore(QtCore.QObject):
         #variables for keeping track of created layers
         self.planLogLayers = []
         self.existingLayersDict ={}
+        self.availSectionDict = {}
         
     def createProjectFile(self):
     #a function to create a project file to save settings etc to
@@ -296,6 +302,9 @@ class DataStore(QtCore.QObject):
     def selectCollars(self, envelope):
         #a function to select collars that fall within an envelope, and return a drillhole XYS dictionary
         pass
+        
+    def writeSaveFile(self):
+        
         
 SECT_FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'sectionview_base.ui'))
@@ -355,6 +364,10 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.tool_pan = qgis.gui.QgsMapToolPan(self.sectionCanvas)
         self.tool_touch = qgis.gui.QgsMapToolTouch(self.sectionCanvas)
         
+        #dictionary to track the available sections
+        self.availSectionDict = {}
+        
+        
         layer = qgis.core.QgsVectorLayer(r"E:\GitHub\Test\test_collars.shp", "test collars", 'ogr')
         print "layer valid", layer.isValid()
         qgis.core.QgsMapLayerRegistry.instance().addMapLayer(layer, addToLegend=False)
@@ -399,6 +412,24 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.genSecDialog = GenerateSection()
         self.genSecDialog.show()
         
+    def chooseSection(self):
+        #funstion to handle the GUI call to load a section
+        sectionname = self.cbxSelSection.text()
+        sectionpath = QDrillerDialog.datastore.availSectionDict[sectionname] #filepath to the definition fileCreated
+        self.loadSection(sectionpath)
+        
+    def loadSection(self, sectionpath):
+        #function to load all the layers of a generated section using the Section Definition File
+        #read the definition file
+        tree = ET.parse(sectionpath)
+        root = tree.getroot()
+        #pull all the layer paths from the definition file
+        layerlist = []
+        for lyrs in root.findall("layer"):
+            layerlist.append(lyrs.text)
+            
+        #open all the files, and add to canvas
+            
     def mapInformation(self):
         print "canvas extent", self.sectionCanvas.extent()
         self.sectionCanvas.refresh()
@@ -522,6 +553,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
                 raise
 
         QDUtils.writeTraceLayer(self.holes2plotXYZ, outputlayer, loadcanvas=False, crs=self.crs)
+        sectionLayers.append(outputlayer)
         #layername = os.path.splitext(os.path.basename(outputlayer))[0]
        # self.existingLayersDict[layername]= outputlayer
        
@@ -547,14 +579,17 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
             QDUtils.LogDrawer(self.holes2plotXYZ, logtarget, outputlayer, plan=False, 
                                 sectionplane=secplane, crs=self.crs, loadcanvas=False)
             
+            sectionLayers.append(outputlayer)
             #layername = os.path.splitext(os.path.basename(outputlayer))[0]
             #self.existingLayersDict[layername]= outputlayer
             #self.fileCreated.emit()
             
              # here need to include code to write to section definition file
-             
-             
-    def writeSectionFile(self):
-        #create a section "save file" containing all the parameters for quick handling in Section Viewer
-        #this also needs to be sent back to SectionViewer GUI for use
-        pass
+             secDef= ET.Element("sectionDefinition", {"name":self.secName})
+             for lyrs in sectionLayers:
+                ET.SubElement(secDef, "layer").text = lyrs
+            
+        secDefPath = os.path.normpath("{}\\{}.qdsd".format(os.path.dirname(outputlayer),self.secName))
+        tree = ET.ElementTree(secDef)
+        tree.write(secDefPath)
+        QDrillerDialog.datastore.availSectionDict[self.scname]=secDefPath
