@@ -22,19 +22,13 @@
 """
 
 import os
-<<<<<<< HEAD
-=======
 
->>>>>>> origin/master
 try:
     import xml.etree.cElementTree as ET
 except ImportError:
     import xml.etree.ElementTree as ET
-<<<<<<< HEAD
-    
-=======
 
->>>>>>> origin/master
+
 from PyQt4 import QtGui, uic, QtCore
 from PyQt4.QtGui import * 
 
@@ -395,9 +389,7 @@ class DataStore(QtCore.QObject):
         #a function to select collars that fall within an envelope, and return a drillhole XYS dictionary
         pass
         
-    def writeSaveFile(self):
-        
-        
+
 SECT_FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'sectionview_base.ui'))
 
@@ -422,7 +414,14 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.sectionCanvas.setDestinationCrs(self.crs)
         self.sectionCanvas.setMapUnits(0)
         
-        #setup scale comboboc widget
+        #setup the legend
+        
+        
+        
+        
+        
+        
+        #setup scale combobox widget
         self.scaleBox = qgis.gui.QgsScaleWidget()
         self.scaleBox.setMapCanvas(self.sectionCanvas)
         self.lytScale.addWidget(self.scaleBox)
@@ -456,23 +455,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.tool_pan = qgis.gui.QgsMapToolPan(self.sectionCanvas)
         self.tool_touch = qgis.gui.QgsMapToolTouch(self.sectionCanvas)
         
-        #dictionary to track the available sections
-        self.availSectionDict = {}
         
-        
-        layer = qgis.core.QgsVectorLayer(r"E:\GitHub\Test\test_collars.shp", "test collars", 'ogr')
-        print "layer valid", layer.isValid()
-        qgis.core.QgsMapLayerRegistry.instance().addMapLayer(layer, addToLegend=False)
-        print "register", qgis.core.QgsMapLayerRegistry.instance().count()
-        canvas_layer = qgis.gui.QgsMapCanvasLayer(layer)
-        canvas_layer.setVisible(True)
-        print "layer visibility", canvas_layer.isVisible()
-        self.sectionCanvas.setLayerSet([canvas_layer])
-        extent = layer.extent()
-        print "layer extents", extent
-        self.sectionCanvas.setExtent(extent)
-        print "canvas extent", self.sectionCanvas.extent()
-        self.sectionCanvas.refresh()
         
     def mapPan(self):
         self.sectionCanvas.setMapTool(self.tool_pan)
@@ -659,6 +642,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         #run the methods to draw the files
         self.subsetDrillholes()
         #create drill traces
+        sectionLayers=[]
         outputlayer = os.path.normpath(r"{}\{}\{}_traces_S.shp".format(
                                         QDrillerDialog.datastore.projectdir,self.secName,
                                         QDrillerDialog.datastore.projectname)
@@ -671,20 +655,15 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         except OSError:
             if not os.path.isdir(sectiondirectory):
                 raise
-<<<<<<< HEAD
+
         secplane = [self.originX, self.originY, self.secAzi]
         print "secplane", secplane
             
         QDUtils.writeTraceLayer(self.holes2plotXYZ, outputlayer, plan=False, sectionplane=secplane, loadcanvas=False, crs=self.crs)
-=======
-
-        QDUtils.writeTraceLayer(self.holes2plotXYZ, outputlayer, loadcanvas=False, crs=self.crs)
-        sectionLayers.append(outputlayer)
->>>>>>> origin/master
-        #layername = os.path.splitext(os.path.basename(outputlayer))[0]
-       # self.existingLayersDict[layername]= outputlayer
+        sectionLayers
        
-        # here need to include cose to write to section definition file
+        # here need to include code to write to section definition file
+        sectionLayers.append(outputlayer)
         
         #create downhole logs
         #Pull the desired downhole logs
@@ -710,16 +689,13 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
                                 sectionplane=secplane, crs=self.crs, loadcanvas=False)
             
             sectionLayers.append(outputlayer)
-            #layername = os.path.splitext(os.path.basename(outputlayer))[0]
-            #self.existingLayersDict[layername]= outputlayer
-            #self.fileCreated.emit()
-            
-             # here need to include code to write to section definition file
-             secDef= ET.Element("sectionDefinition", {"name":self.secName})
-             for lyrs in sectionLayers:
-                ET.SubElement(secDef, "layer").text = lyrs
+
+        # here need to include code to write to section definition file
+        secDef= ET.Element("sectionDefinition", {"name":self.secName})
+        for lyrs in sectionLayers:
+            ET.SubElement(secDef, "layer").text = lyrs
             
         secDefPath = os.path.normpath("{}\\{}.qdsd".format(os.path.dirname(outputlayer),self.secName))
         tree = ET.ElementTree(secDef)
         tree.write(secDefPath)
-        QDrillerDialog.datastore.availSectionDict[self.scname]=secDefPath
+        QDrillerDialog.datastore.availSectionDict[self.secName]= secDefPath
