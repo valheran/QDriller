@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="/plugins/QDriller">
+    <file>icons/mouse-pointer.svg</file>
+    <file>icons/mActionFilter.png</file>
     <file>icons/mActionFileSave.svg</file>
     <file>icons/mActionIdentify.svg</file>
     <file>icons/mActionMeasure.png</file>

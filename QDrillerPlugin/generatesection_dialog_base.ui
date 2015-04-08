@@ -80,24 +80,15 @@
       <x>130</x>
       <y>140</y>
       <width>31</width>
-      <height>23</height>
+      <height>31</height>
      </rect>
     </property>
     <property name="text">
      <string/>
     </property>
-   </widget>
-   <widget class="QPushButton" name="btnOriginY">
-    <property name="geometry">
-     <rect>
-      <x>130</x>
-      <y>170</y>
-      <width>31</width>
-      <height>23</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string/>
+    <property name="icon">
+     <iconset resource="resources.qrc">
+      <normaloff>:/plugins/QDriller/icons/mouse-pointer.svg</normaloff>:/plugins/QDriller/icons/mouse-pointer.svg</iconset>
     </property>
    </widget>
    <widget class="QPushButton" name="btnFromLine">
@@ -116,7 +107,7 @@
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
-      <x>20</x>
+      <x>10</x>
       <y>110</y>
       <width>131</width>
       <height>31</height>
@@ -149,7 +140,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>250</y>
+      <y>270</y>
       <width>111</width>
       <height>16</height>
      </rect>
@@ -162,7 +153,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>270</y>
+      <y>290</y>
       <width>113</width>
       <height>20</height>
      </rect>
@@ -230,6 +221,29 @@
      </rect>
     </property>
    </widget>
+   <widget class="QLineEdit" name="ledSecLength">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>250</y>
+      <width>113</width>
+      <height>20</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_10">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>230</y>
+      <width>81</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Section Length</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QListWidget" name="lstSelDH">
    <property name="geometry">
@@ -240,6 +254,9 @@
      <height>192</height>
     </rect>
    </property>
+   <property name="selectionMode">
+    <enum>QAbstractItemView::ExtendedSelection</enum>
+   </property>
   </widget>
   <widget class="QListWidget" name="lstAvailDH">
    <property name="geometry">
@@ -249,6 +266,9 @@
      <width>101</width>
      <height>192</height>
     </rect>
+   </property>
+   <property name="selectionMode">
+    <enum>QAbstractItemView::ExtendedSelection</enum>
    </property>
   </widget>
   <widget class="QPushButton" name="btnAddDH">
@@ -313,7 +333,7 @@
     </rect>
    </property>
    <property name="selectionMode">
-    <enum>QAbstractItemView::MultiSelection</enum>
+    <enum>QAbstractItemView::ExtendedSelection</enum>
    </property>
   </widget>
   <widget class="QPushButton" name="btnAddDHLog">
@@ -358,7 +378,7 @@
     </rect>
    </property>
    <property name="selectionMode">
-    <enum>QAbstractItemView::MultiSelection</enum>
+    <enum>QAbstractItemView::ExtendedSelection</enum>
    </property>
   </widget>
   <widget class="QPushButton" name="btnRemDHLog">
@@ -406,8 +426,27 @@
     <string>Generate Cross Section</string>
    </property>
   </widget>
+  <widget class="QPushButton" name="btnFilterHoles">
+   <property name="geometry">
+    <rect>
+     <x>500</x>
+     <y>20</y>
+     <width>31</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/icons/mActionFilter.png</normaloff>:/plugins/QDriller/icons/mActionFilter.png</iconset>
+   </property>
+  </widget>
  </widget>
- <resources/>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>buttonBox</sender>
