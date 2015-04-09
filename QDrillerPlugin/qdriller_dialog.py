@@ -29,11 +29,11 @@ except ImportError:
     import xml.etree.ElementTree as ET
 
 
-from PyQt4 import QtGui, uic, QtCore
+from PyQt4 import QtGui, uic, QtCore, Qt
 from PyQt4.QtGui import * 
 
-import qgis.core
-import qgis.gui
+from qgis.core import *
+from qgis.gui import *
 
 #import module with all the technical backend code
 import QDriller_Utilities as QDUtils
@@ -188,14 +188,14 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
             trash = None
         #close layers if they are open
         for names in delList:
-            mapregList = qgis.core.QgsMapLayerRegistry.instance().mapLayersByName(names)
+            mapregList = QgsMapLayerRegistry.instance().mapLayersByName(names)
             for lyr in mapregList:
-                qgis.core.QgsMapLayerRegistry.instance().removeMapLayer(lyr.id())
+                QgsMapLayerRegistry.instance().removeMapLayer(lyr.id())
                 
         #delete shapefiles
         for names in delList:
             path = QDrillerDialog.datastore.existingLayersDict[names]
-            qgis.core.QgsVectorFileWriter.deleteShapeFile(path)
+            QgsVectorFileWriter.deleteShapeFile(path)
             #remove from existing layer dictionary
             del QDrillerDialog.datastore.existingLayersDict[names]
         #regenerate the list
@@ -244,10 +244,10 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
         
     def fetchCRS(self):
         #call on the QGIS GUI CRS selection Dialog
-        getCRS = qgis.gui.QgsGenericProjectionSelector()
+        getCRS = QgsGenericProjectionSelector()
         getCRS.exec_()
         #initialise blank CRS
-        selCRS = qgis.core.QgsCoordinateReferenceSystem()
+        selCRS = QgsCoordinateReferenceSystem()
         #turn blank CRS into desired CRS using the authority identifier selected above
         selCRS.createFromUserInput(getCRS.selectedAuthId())
         #set the projectCRS to the selected CRS (this is a QgsCRS type object)
@@ -257,6 +257,8 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
     def openSectionView(self):
         self.sectionview = SectionView()
         self.sectionview.show()
+        #need to deal with the registry when the window closes
+        
         
     def printout(self):
         print QDrillerDialog.datastore.collarfile
@@ -310,7 +312,7 @@ class DataStore(QtCore.QObject):
         self.collarfile = root.find("collar").text
         self.surveyfile = root.find("survey").text
         
-        selCRS = qgis.core.QgsCoordinateReferenceSystem()
+        selCRS = QgsCoordinateReferenceSystem()
         #turn blank CRS into desired CRS using the authority identifier
         crsid =root.find("prjcrs").text
         selCRS.createFromUserInput(crsid)
@@ -327,7 +329,14 @@ class DataStore(QtCore.QObject):
             name = exlayers.get("name")
             path = exlayers.text
             self.existingLayersDict[name] = path
+            
+        self.availSectionDict ={}
+        for sects in root.findall("sections"):
+            name = sects.get("name")
+            path = sects.text
+            self.availSectionDict[name] = path
         
+        print "section Dict", self.availSectionDict
         #emit signal?
         self.projectLoaded.emit()
         
@@ -346,7 +355,10 @@ class DataStore(QtCore.QObject):
             
         for k in self.existingLayersDict:
             ET.SubElement(root, "existlyr",{"name":k}).text = self.existingLayersDict[k]
-        
+            
+        for s in self.availSectionDict:
+            ET.SubElement(root, "sections",{"name":s}).text = self.availSectionDict[s]
+            
         savefile = ET.ElementTree(root)
         savefile.write(self.savefilepath)
         #also set up for sectionviewer to throw a list of section definition files to the datastore and be written here
@@ -406,23 +418,60 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.setupUi(self)
 
         #initialise mapcanvas
-        self.sectionCanvas = qgis.gui.QgsMapCanvas()
+        self.sectionCanvas = QgsMapCanvas()
+        self.sectionCanvas.enableAntiAliasing(True)
         #self.sectionCanvas.setCanvasColour(Qt.white)
         self.lytMap.addWidget(self.sectionCanvas)
-        self.crs= qgis.core.QgsCoordinateReferenceSystem()
-        self.crs.createFromUserInput("EPSG:4978")
+        self.crs= QgsCoordinateReferenceSystem()
+        self.crs.createFromUserInput("EPSG:4328")
         self.sectionCanvas.setDestinationCrs(self.crs)
         self.sectionCanvas.setMapUnits(0)
         
         #setup the legend
+        self.layertreeRoot = QgsLayerTreeGroup()
+        self.bridge = QgsLayerTreeMapCanvasBridge(self.layertreeRoot, self.sectionCanvas)
+        self.bridge.setAutoSetupOnFirstLayer(False)  #stop the CRS and units being changed when loading layers
+        self.model = QgsLayerTreeModel(self.layertreeRoot)
+        self.legendView = QgsLayerTreeView()
+        self.legendView.setModel(self.model)
+        self.menupr = SVMenuProvider(self.legendView)
+        self.legendView.setMenuProvider(self.menupr)
+        self.lytLegend.addWidget(self.legendView)
+        self.model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility)
+        self.model.setFlag(QgsLayerTreeModel.AllowNodeReorder)
+        self.model.setFlag(QgsLayerTreeModel.ShowLegend)
+        
+        #attempt to make separate registry
         
         
+        #testing legend behaviour
+        """
+        layer1 = QgsVectorLayer("Point", "layer1", "memory")
+        layer2 = QgsVectorLayer("Point", "layer2", "memory")
+        layer3 = QgsVectorLayer("Point", "layer3", "memory")
+        layer4 = QgsVectorLayer("Point", "layer4", "memory")
         
+        QgsMapLayerRegistry.instance().addMapLayer(layer2, False)
+        QgsMapLayerRegistry.instance().addMapLayer(layer3, False)
+        QgsMapLayerRegistry.instance().addMapLayer(layer4, False)
+            #wrap layers in LayerTreeLayer
+        self.node_layer1 = QgsLayerTreeLayer(layer1)
+        self.node_layer2 = QgsLayerTreeLayer(layer2)
+        self.node_layer3 = QgsLayerTreeLayer(layer3)
+        self.node_layer4 = QgsLayerTreeLayer(layer4)
         
+        self.layertreeRoot_group1 = self.layertreeRoot.addGroup("group1") #this works
+        self.layertreeRoot.addChildNode(self.node_layer1)  #this doesnt - layer not in registry
+        self.layertreeRoot.addChildNode(self.node_layer4)    #this works
+        self.layertreeRoot_group1.addChildNode(self.node_layer2)  #this works
+        self.layertreeRoot.addLayer(layer3)  #this works
+        """
+        #testpath = r"E:\GitHub\test\test11\test11.qdsd"
+        #self.loadSection(testpath)
         
         
         #setup scale combobox widget
-        self.scaleBox = qgis.gui.QgsScaleWidget()
+        self.scaleBox = QgsScaleWidget()
         self.scaleBox.setMapCanvas(self.sectionCanvas)
         self.lytScale.addWidget(self.scaleBox)
         self.sectionCanvas.scaleChanged.connect(self.scaleBox.setScaleFromCanvas)
@@ -450,12 +499,15 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.actionGenerateSection.triggered.connect(self.genSec)
         
         # create the map tool(s)
-        self.tool_zoomin = qgis.gui.QgsMapToolZoom(self.sectionCanvas, False)
-        self.tool_zoomout = qgis.gui.QgsMapToolZoom(self.sectionCanvas, True)
-        self.tool_pan = qgis.gui.QgsMapToolPan(self.sectionCanvas)
-        self.tool_touch = qgis.gui.QgsMapToolTouch(self.sectionCanvas)
+        self.tool_zoomin = QgsMapToolZoom(self.sectionCanvas, False)
+        self.tool_zoomout = QgsMapToolZoom(self.sectionCanvas, True)
+        self.tool_pan = QgsMapToolPan(self.sectionCanvas)
+        self.tool_touch = QgsMapToolTouch(self.sectionCanvas)
         
-        
+        #listen for signals
+        #self.layertreeRoot.visibilityChanged.connect(self.visibilitySetter)
+        #load up any pre-existing sections
+        self.refreshGui()
         
     def mapPan(self):
         self.sectionCanvas.setMapTool(self.tool_pan)
@@ -485,26 +537,58 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
     def genSec(self):
         print "gensec action triggered"
         self.genSecDialog = GenerateSection()
+        #listen out for sections to be generated
+        self.genSecDialog.sectionGenerated.connect(self.refreshGui)
+        
         self.genSecDialog.show()
         
-    def chooseSection(self):
-        #funstion to handle the GUI call to load a section
-        sectionname = self.cbxSelSection.text()
-        sectionpath = QDrillerDialog.datastore.availSectionDict[sectionname] #filepath to the definition fileCreated
-        self.loadSection(sectionpath)
         
     def loadSection(self, sectionpath):
         #function to load all the layers of a generated section using the Section Definition File
         #read the definition file
+        self.layertreeRoot.blockSignals(True)
         tree = ET.parse(sectionpath)
-        root = tree.getroot()
+        dfn = tree.getroot()
         #pull all the layer paths from the definition file
         layerlist = []
-        for lyrs in root.findall("layer"):
+        for lyrs in dfn.findall("layer"):
             layerlist.append(lyrs.text)
-            
+        
+        #create group in layertree to hold layers --could collapse this into the above loop-?
+        lgroup = self.layertreeRoot.addGroup(dfn.get("name"))
         #open all the files, and add to canvas
-            
+        for lyr in layerlist:
+            lname =os.path.splitext(os.path.basename(lyr))[0]
+            l = QgsVectorLayer(lyr, lname,"ogr")
+            QgsMapLayerRegistry.instance().addMapLayer(l, False)
+            lgroup.addLayer(l)
+            extent= l.extent()
+        self.visibilitySetter(lgroup, QtCore.Qt.Checked)
+        self.sectionCanvas.setExtent(extent)
+        self.layertreeRoot.blockSignals(False)
+        
+    def refreshGui(self):
+        #Reload the sections
+        print "Section View Refresh Called"
+        #clear out any current layers
+        self.layertreeRoot.removeAllChildren()
+        
+        #Load each section from the availSectionDict
+        for sects in QDrillerDialog.datastore.availSectionDict:
+            self.loadSection(QDrillerDialog.datastore.availSectionDict[sects])
+        
+    def visibilitySetter(self, node, state):
+        #funstion to ensure only one section at a time is shown
+        #designed to respond to the visibility changed signal emitted 
+        #determine if signal came from group or not
+        if (node.nodeType()==0) and (state == QtCore.Qt.Checked):
+            for groups in self.layertreeRoot.children():
+                groups.setVisible(QtCore.Qt.Unchecked)
+                groups.setExpanded(False)
+                
+            node.setVisible(QtCore.Qt.Checked)
+            node.setExpanded(True)
+        
     def mapInformation(self):
         print "canvas extent", self.sectionCanvas.extent()
         self.sectionCanvas.refresh()
@@ -513,13 +597,23 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         print "centre of canvas", centre.toString()
         print "canvas projection ", self.sectionCanvas.mapSettings().destinationCrs().authid()
         print "Canvas Scale", self.sectionCanvas.scale()
-        print"canvas setting scale", self.sectionCanvas.mapSettings().scale()
-            
+        print"canvas setting scale", self.sectionCanvas.mapSettings().scale
+        print "antialiasing", self.sectionCanvas.antiAliasingEnabled()
+        
+    def closeEvent(self, event):
+        #clean up map registry of files that were opened in section view
+        layerstoclose = self.layertreeRoot.findLayerIds()
+        QgsMapLayerRegistry.instance().removeMapLayers(layerstoclose)
+        
+        
 GEN_FORM_CLASS, _ = uic.loadUiType(os.path.join(
 os.path.dirname(__file__), 'generatesection_dialog_base.ui'))
 
 
 class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
+
+    sectionGenerated = QtCore.pyqtSignal()
+
     def __init__(self, parent=None):
         """Constructor."""
         super(GenerateSection, self).__init__(parent)
@@ -548,8 +642,8 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         
         
         #set the crs using the same hardcode as in the section viewer
-        self.crs= qgis.core.QgsCoordinateReferenceSystem()
-        self.crs.createFromUserInput("EPSG:4978")
+        self.crs= QgsCoordinateReferenceSystem()
+        self.crs.createFromUserInput("EPSG:4328")
         
         #connect GUI buttons
         self.btnAddDHLog.clicked.connect(self.addDHLog)
@@ -698,4 +792,26 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         secDefPath = os.path.normpath("{}\\{}.qdsd".format(os.path.dirname(outputlayer),self.secName))
         tree = ET.ElementTree(secDef)
         tree.write(secDefPath)
-        QDrillerDialog.datastore.availSectionDict[self.secName]= secDefPath
+        #send infomation to the datastore about the created section
+        QDrillerDialog.datastore.availSectionDict[self.secName]= secDefPath  #could this be set up with signals instead
+        #relaod the sections in SectionView
+        self.sectionGenerated.emit()
+        
+        
+class SVMenuProvider(QgsLayerTreeViewMenuProvider):
+    def __init__(self, view):
+        QgsLayerTreeViewMenuProvider.__init__(self)
+        self.view = view
+
+    def createContextMenu(self):
+        if not self.view.currentLayer():
+          return None
+
+        defaultactions = QgsLayerTreeViewDefaultActions(self.view)
+        m = QMenu()
+        m.addAction("Show Extent", self.showExtent)
+        return m
+
+    def showExtent(self):
+       print "show extent menu button hit"
+
