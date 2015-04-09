@@ -505,7 +505,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.tool_touch = QgsMapToolTouch(self.sectionCanvas)
         
         #listen for signals
-        #self.layertreeRoot.visibilityChanged.connect(self.visibilitySetter)
+        self.layertreeRoot.visibilityChanged.connect(self.visibilitySetter)
         #load up any pre-existing sections
         self.refreshGui()
         
@@ -810,6 +810,9 @@ class SVMenuProvider(QgsLayerTreeViewMenuProvider):
         defaultactions = QgsLayerTreeViewDefaultActions(self.view)
         m = QMenu()
         m.addAction("Show Extent", self.showExtent)
+        m.addAction("Remove Layer", defaultactions.actionRemoveGroupOrLayer)
+        m.addAction("Show Feature Count", defaultactions.actionShowFeatureCount)
+        m.addAction("Zoom to Layer", defaultactions.actionZoomToLayer(QDrillerDialog.sectionview.sectionCanvas))
         return m
 
     def showExtent(self):
