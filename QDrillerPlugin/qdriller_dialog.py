@@ -461,6 +461,8 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.navToolbar.addActions(self.mapNavActions.actions())
         self.sectionBar = self.addToolBar("Section Tools")
         self.sectionBar.addAction(self.actionGenerateSection)
+        self.featureTools = self.addToolBar("Feature Tools")
+        self.featureTools.addAction(self.actionIdentify)
 
         # connect the tool(s)
         self.actionZoom_in.triggered.connect(self.zoom_in)
@@ -468,18 +470,22 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.actionPan.triggered.connect(self.mapPan)
         self.actionTouch.triggered.connect(self.mapTouch)
         self.actionGenerateSection.triggered.connect(self.genSec)
+        self.actionIdentify.triggered.connect(self.mapIdentify)
         
         # create the map tool(s)
         self.tool_zoomin = QgsMapToolZoom(self.sectionCanvas, False)
         self.tool_zoomout = QgsMapToolZoom(self.sectionCanvas, True)
         self.tool_pan = QgsMapToolPan(self.sectionCanvas)
         self.tool_touch = QgsMapToolTouch(self.sectionCanvas)
+        self.tool_identify = QgsMapToolIdentify(self.sectionCanvas)
         
         #listen for signals
         self.layertreeRoot.visibilityChanged.connect(self.visibilitySetter)
         #load up any pre-existing sections
         self.refreshGui()
         
+    def mapIdentify(self):
+        self.sectionCanvas.setMapTool(self.tool_identify)
     def mapPan(self):
         self.sectionCanvas.setMapTool(self.tool_pan)
         print "pan action triggered"
@@ -777,7 +783,7 @@ class SVMenuProvider(QgsLayerTreeViewMenuProvider):
         self.iface = iface
     def createContextMenu(self):
         if not self.view.currentLayer():
-          return None
+            return None
 
         print QDrillerDialog.sectionview.sectionCanvas
         
@@ -786,16 +792,24 @@ class SVMenuProvider(QgsLayerTreeViewMenuProvider):
         m.addAction("Remove Layer", self.removeLayer)
         m.addAction("Show Feature Count", self.featureCount)
         m.addAction("Zoom to Layer", self.zoomtoLayer)
+        m.addAction("Attribute Table",self.showAttributes)
         return m
 
     def zoomtoLayer(self):
         print "show extent menu button hit"
         self.defaultactions.zoomToLayer(QDrillerDialog.sectionview.sectionCanvas)
+        
     def featureCount(self):
         self.defaultactions.showFeatureCount()
+        
     def removeLayer(self):
         self.defaultactions.removeGroupOrLayer()
+        
     def showProperties(self):
         self.iface.showLayerProperties(self.view.currentLayer())
-   
+        
+    def showAttributes(self):
+        self.iface.showAttributeTable(self.view.currentLayer())
+
+#class SelectTool(QgsMapTool):
 

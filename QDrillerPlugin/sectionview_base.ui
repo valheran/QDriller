@@ -290,6 +290,57 @@
     <string>Generate a new cross section</string>
    </property>
   </action>
+  <action name="actionIdentify">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/icons/mActionIdentify.svg</normaloff>:/plugins/QDriller/icons/mActionIdentify.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Identify</string>
+   </property>
+  </action>
+  <action name="actionMeasureTool">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/icons/mActionMeasure.png</normaloff>:/plugins/QDriller/icons/mActionMeasure.png</iconset>
+   </property>
+   <property name="text">
+    <string>MeasureTool</string>
+   </property>
+  </action>
+  <action name="actionMeasureArea">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/icons/mActionMeasureArea.png</normaloff>:/plugins/QDriller/icons/mActionMeasureArea.png</iconset>
+   </property>
+   <property name="text">
+    <string>Measure Area</string>
+   </property>
+  </action>
+  <action name="actionSelectTool">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/icons/mActionSelect.svg</normaloff>:/plugins/QDriller/icons/mActionSelect.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Select</string>
+   </property>
+   <property name="toolTip">
+    <string>Select Features</string>
+   </property>
+  </action>
+  <action name="actionPolygonSelect">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/icons/mActionSelectPolygon.svg</normaloff>:/plugins/QDriller/icons/mActionSelectPolygon.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Polygon Select</string>
+   </property>
+   <property name="toolTip">
+    <string>Select features using polygon</string>
+   </property>
+  </action>
  </widget>
  <resources>
   <include location="resources.qrc"/>
