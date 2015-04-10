@@ -45,9 +45,9 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
 class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
 
     
-    
+    sectionview = None
     datastore = None
-    def __init__(self, parent=None):
+    def __init__(self, iface, parent=None):
         """Constructor."""
         super(QDrillerDialog, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -56,7 +56,7 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        
+        self.iface = iface
         ##Initialise data Store Class###
         QDrillerDialog.datastore = DataStore()
        
@@ -255,8 +255,8 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
         self.ledCRS.setText(QDrillerDialog.datastore.projectCRS.authid())
         
     def openSectionView(self):
-        self.sectionview = SectionView()
-        self.sectionview.show()
+        QDrillerDialog.sectionview = SectionView(self.iface)
+        QDrillerDialog.sectionview.show()
         #need to deal with the registry when the window closes
         
         
@@ -407,7 +407,7 @@ SECT_FORM_CLASS, _ = uic.loadUiType(os.path.join(
 
 
 class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
-    def __init__(self, parent=None):
+    def __init__(self, iface, parent=None):
         """Constructor."""
         super(SectionView, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -416,7 +416,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-
+        self.iface = iface
         #initialise mapcanvas
         self.sectionCanvas = QgsMapCanvas()
         self.sectionCanvas.enableAntiAliasing(True)
@@ -434,41 +434,12 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.model = QgsLayerTreeModel(self.layertreeRoot)
         self.legendView = QgsLayerTreeView()
         self.legendView.setModel(self.model)
-        self.menupr = SVMenuProvider(self.legendView)
+        self.menupr = SVMenuProvider(self.legendView, self.iface)
         self.legendView.setMenuProvider(self.menupr)
         self.lytLegend.addWidget(self.legendView)
         self.model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility)
         self.model.setFlag(QgsLayerTreeModel.AllowNodeReorder)
         self.model.setFlag(QgsLayerTreeModel.ShowLegend)
-        
-        #attempt to make separate registry
-        
-        
-        #testing legend behaviour
-        """
-        layer1 = QgsVectorLayer("Point", "layer1", "memory")
-        layer2 = QgsVectorLayer("Point", "layer2", "memory")
-        layer3 = QgsVectorLayer("Point", "layer3", "memory")
-        layer4 = QgsVectorLayer("Point", "layer4", "memory")
-        
-        QgsMapLayerRegistry.instance().addMapLayer(layer2, False)
-        QgsMapLayerRegistry.instance().addMapLayer(layer3, False)
-        QgsMapLayerRegistry.instance().addMapLayer(layer4, False)
-            #wrap layers in LayerTreeLayer
-        self.node_layer1 = QgsLayerTreeLayer(layer1)
-        self.node_layer2 = QgsLayerTreeLayer(layer2)
-        self.node_layer3 = QgsLayerTreeLayer(layer3)
-        self.node_layer4 = QgsLayerTreeLayer(layer4)
-        
-        self.layertreeRoot_group1 = self.layertreeRoot.addGroup("group1") #this works
-        self.layertreeRoot.addChildNode(self.node_layer1)  #this doesnt - layer not in registry
-        self.layertreeRoot.addChildNode(self.node_layer4)    #this works
-        self.layertreeRoot_group1.addChildNode(self.node_layer2)  #this works
-        self.layertreeRoot.addLayer(layer3)  #this works
-        """
-        #testpath = r"E:\GitHub\test\test11\test11.qdsd"
-        #self.loadSection(testpath)
-        
         
         #setup scale combobox widget
         self.scaleBox = QgsScaleWidget()
@@ -799,22 +770,32 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         
         
 class SVMenuProvider(QgsLayerTreeViewMenuProvider):
-    def __init__(self, view):
+    def __init__(self, view, iface):
         QgsLayerTreeViewMenuProvider.__init__(self)
         self.view = view
-
+        self.defaultactions = QgsLayerTreeViewDefaultActions(self.view)
+        self.iface = iface
     def createContextMenu(self):
         if not self.view.currentLayer():
           return None
 
-        defaultactions = QgsLayerTreeViewDefaultActions(self.view)
+        print QDrillerDialog.sectionview.sectionCanvas
+        
         m = QMenu()
-        m.addAction("Show Extent", self.showExtent)
-        m.addAction("Remove Layer", defaultactions.actionRemoveGroupOrLayer)
-        m.addAction("Show Feature Count", defaultactions.actionShowFeatureCount)
-        m.addAction("Zoom to Layer", defaultactions.actionZoomToLayer(QDrillerDialog.sectionview.sectionCanvas))
+        m.addAction("Properties", self.showProperties)
+        m.addAction("Remove Layer", self.removeLayer)
+        m.addAction("Show Feature Count", self.featureCount)
+        m.addAction("Zoom to Layer", self.zoomtoLayer)
         return m
 
-    def showExtent(self):
-       print "show extent menu button hit"
+    def zoomtoLayer(self):
+        print "show extent menu button hit"
+        self.defaultactions.zoomToLayer(QDrillerDialog.sectionview.sectionCanvas)
+    def featureCount(self):
+        self.defaultactions.showFeatureCount()
+    def removeLayer(self):
+        self.defaultactions.removeGroupOrLayer()
+    def showProperties(self):
+        self.iface.showLayerProperties(self.view.currentLayer())
+   
 
