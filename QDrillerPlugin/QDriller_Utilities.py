@@ -225,37 +225,38 @@ class LogDrawer:
             lsampfrom =float( logfeature.attributes()[logfeature.fieldNameIndex('From')])
             lsampto = float(logfeature.attributes()[logfeature.fieldNameIndex('To')])
             logtrace= None  #reset the logtrace container in case of error from previous iteration
-            
-            #print "holeXYZ", holeXYZ
-            #print"from", lsampfrom
-            #print"to", lsampto
-            try:
-                holeXYZ = self.holecoords[holeid]
-                loginterval = IntervalCoordBuilder(holeXYZ, lsampfrom, lsampto)
-                logresultinterval= loginterval.intervalcoords
-                #print "interval", logresultinterval
-                #create the geometry from the interval coords
-                if self.plantoggle:
-                #create layers in plan view
-                    logtrace = planGeomBuilder(logresultinterval)
-                else:
-                    logtrace = sectionGeomBuilder(logresultinterval, self.sectionplane)
-                    
-            except (IndexError, ValueError) as e:
-                msg = "Something wrong with log data in %s at %s to %s: %s" % (holeid, lsampfrom, lsampto, e)
-                print msg
-            except KeyError:
-                msg = "Data for hole that does not exist %s" % (holeid)
-                print msg
-            #create a new feature, set geometry from above and add the attributes from original data table
-            logfeat=QgsFeature()
-            try:
-                logfeat.setGeometry(logtrace)
-                logfeat.setAttributes(logfeature.attributes())
-                writer.addFeature(logfeat)
-            except TypeError as e:
-                print "geometry could not be made for %s %s %s %s" % (holeid, lsampfrom, lsampto, e)
-            #logfeatures.append(logfeat)
+            #check that hole is included in subset to be drawn, then draw interval
+            if self.holecoords.has_key(holeid):
+                #print "holeXYZ", holeXYZ
+                #print"from", lsampfrom
+                #print"to", lsampto
+                try:
+                    holeXYZ = self.holecoords[holeid]
+                    loginterval = IntervalCoordBuilder(holeXYZ, lsampfrom, lsampto)
+                    logresultinterval= loginterval.intervalcoords
+                    #print "interval", logresultinterval
+                    #create the geometry from the interval coords
+                    if self.plantoggle:
+                    #create layers in plan view
+                        logtrace = planGeomBuilder(logresultinterval)
+                    else:
+                        logtrace = sectionGeomBuilder(logresultinterval, self.sectionplane)
+                        
+                except (IndexError, ValueError) as e:
+                    msg = "Something wrong with log data in %s at %s to %s: %s" % (holeid, lsampfrom, lsampto, e)
+                    print msg
+                except KeyError:
+                    msg = "Data for hole that does not exist %s" % (holeid)
+                    print msg
+                #create a new feature, set geometry from above and add the attributes from original data table
+                logfeat=QgsFeature()
+                try:
+                    logfeat.setGeometry(logtrace)
+                    logfeat.setAttributes(logfeature.attributes())
+                    writer.addFeature(logfeat)
+                except TypeError as e:
+                    print "geometry could not be made for %s %s %s %s" % (holeid, lsampfrom, lsampto, e)
+                #logfeatures.append(logfeat)
         del writer
         
         if self.loadcanvas:

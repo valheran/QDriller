@@ -441,6 +441,10 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.model.setFlag(QgsLayerTreeModel.AllowNodeReorder)
         self.model.setFlag(QgsLayerTreeModel.ShowLegend)
         
+        #setup identify box NOTE has been set up in designer, given the name identTree
+        #self.identTree = QtGui.QTreeWidget()
+        #self.lytIdentify.addWidget(self.identTree)
+        
         #setup scale combobox widget
         self.scaleBox = QgsScaleWidget()
         self.scaleBox.setMapCanvas(self.sectionCanvas)
@@ -477,7 +481,9 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.tool_zoomout = QgsMapToolZoom(self.sectionCanvas, True)
         self.tool_pan = QgsMapToolPan(self.sectionCanvas)
         self.tool_touch = QgsMapToolTouch(self.sectionCanvas)
-        self.tool_identify = QgsMapToolIdentify(self.sectionCanvas)
+        self.tool_identify = IdentifyTool(self.sectionCanvas, self.identTree)
+        
+        #maptool signals
         
         #listen for signals
         self.layertreeRoot.visibilityChanged.connect(self.visibilitySetter)
@@ -486,6 +492,8 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         
     def mapIdentify(self):
         self.sectionCanvas.setMapTool(self.tool_identify)
+        self.dockIdent.setVisible(True)
+
     def mapPan(self):
         self.sectionCanvas.setMapTool(self.tool_pan)
         print "pan action triggered"
@@ -541,8 +549,9 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
             lgroup.addLayer(l)
             extent= l.extent()
         self.visibilitySetter(lgroup, QtCore.Qt.Checked)
-        self.sectionCanvas.setExtent(extent)
         self.layertreeRoot.blockSignals(False)
+        self.sectionCanvas.setExtent(extent)
+        
         
     def refreshGui(self):
         #Reload the sections
@@ -609,7 +618,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.secFacing = None
         self.envWidth = None
         self.secLength = None
-        self.holes2plotXYZ = None
+        self.holes2plotXYZ = {}
         self.availLogs ={}
         self.selectedLogs = []
         self.availDrillholes = []
@@ -659,8 +668,17 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
             
     def subsetDrillholes(self):
         #create the subset of drill XYZ to plot
-        self.holes2plotXYZ = QDrillerDialog.datastore.drillholesXYZ #placeholder only, need to make function to perform subset
-        
+        #self.holes2plotXYZ = QDrillerDialog.datastore.drillholesXYZ #placeholder only, need to make function to perform subset
+        #pull Collar names from the selection list
+        templist = []    
+        for i in xrange(self.lstSelDH.count()):
+            templist.append(self.lstSelDH.item(i).text())
+        #flush out drillhole dictionary
+        self.holes2plotXYZ={}
+        #read in subset to be plotted to dictionary
+        for DH in templist:
+            self.holes2plotXYZ[DH]= QDrillerDialog.datastore.drillholesXYZ[DH]
+            
     def filterHoles(self):
         #function to filter the available holes to that within the envelope and set the selected drillholes to this
         print "filtering not implemented yet"
@@ -811,5 +829,57 @@ class SVMenuProvider(QgsLayerTreeViewMenuProvider):
     def showAttributes(self):
         self.iface.showAttributeTable(self.view.currentLayer())
 
-#class SelectTool(QgsMapTool):
+class IdentifyTool(QgsMapToolIdentify):
+    def __init__(self, canvas, treewidget):
+        self.canvas = canvas
+        self.treewidget = treewidget
+        self.treewidget.clear()
 
+        QgsMapToolIdentify.__init__(self, canvas)
+    
+    def canvasReleaseEvent(self, mouseEvent):
+        results = self.identify(mouseEvent.x(), mouseEvent.y(), self.LayerSelection)
+        print "feature identify click"
+        print "results", results[0].mLayer, results[0].mFields, results[0].mFeature
+        """fet = results[0].mFeature
+        fld = fet.fields().toList()
+        print fld
+            
+        
+        print "feature Info"
+        print fet.id()
+        for f in fld:
+            fname = f.name()
+            attr = fet.attribute(fname)
+            print "{}:{}".format(fname, attr)
+        """
+        #build a tree to display
+        resDict = {}
+        for result in results:
+            lyrname = result.mLayer.name()
+            
+            if resDict.has_key(lyrname):
+                olist = resDict[lyrname]
+                olist.append(result)
+                resDict[lyrname] = olist
+            else:
+                resDict[lyrname] = [result]
+            
+        self.treewidget.clear()
+        for lyr in resDict:
+            treeLayer = QTreeWidgetItem(self.treewidget)
+            treeLayer.setText(0,lyr)
+            treeLayer.setExpanded(True)
+            for res in resDict[lyr]:
+                fet = res.mFeature
+                fld = fet.fields().toList()
+                featres = QTreeWidgetItem(treeLayer)
+                featres.setText(0, fet.attribute(fld[0].name()))
+                for f in fld:
+                    fname = f.name()
+                    attr = fet.attribute(fname)
+                    featdata = QTreeWidgetItem(featres)
+                    featdata.setText(0, fname)
+                    featdata.setText(1, str(attr))
+                    print "layer :{}, Feature:{}, Attrib:{}:{}".format(lyr, fet.id(), fname, attr)
+    
