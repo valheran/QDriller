@@ -294,6 +294,9 @@ def sectionGeomBuilder(coordlist, sectionplane):
         beta = alpha - math.radians(90 - sectionplane[2] )
         #calculate the along section coord using beta and distance from origin
         xS = math.cos(beta) * dist
+        #NOTE the "normal distance" to the point will be sin(beta)*dist. this may be usefulto exploit for making envelopes
+        # ie could use as a screening criteria and not include any nodes that are too far. may need to be careful to handle
+        # empty geometries that will be made in the logs, perhaps with some sort of flagging system
         node = QgsPoint(xS, coordsXYZ[2])
         nodestring.append(node)
     linestring = QgsGeometry.fromPolyline(nodestring)

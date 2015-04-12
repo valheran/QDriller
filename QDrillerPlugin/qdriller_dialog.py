@@ -22,6 +22,7 @@
 """
 
 import os
+import math
 
 try:
     import xml.etree.cElementTree as ET
@@ -624,9 +625,6 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.availDrillholes = []
         self.selDrillholes = []
         
-        
-        
-        
         #set the crs using the same hardcode as in the section viewer
         self.crs= QgsCoordinateReferenceSystem()
         self.crs.createFromUserInput("EPSG:4328")
@@ -664,7 +662,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         elif target == "Env":
             self.envWidth = float(value)
         elif target == "seclength":
-            self.secLength = value
+            self.secLength = float(value)
             
     def subsetDrillholes(self):
         #create the subset of drill XYZ to plot
@@ -678,11 +676,105 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         #read in subset to be plotted to dictionary
         for DH in templist:
             self.holes2plotXYZ[DH]= QDrillerDialog.datastore.drillholesXYZ[DH]
-            
+    
+    def createEnvelope(self):
+        #define envelope _ consider having this in a function of its own that can be called and display envelope
+        # as a preveiw in the main canvas
+        razi = math.radians(self.secAzi)
+        raziminus = math.radians(self.secAzi - 90)
+        raziplus = math.radians(self.secAzi + 90)
+        
+        Ex = self.originX + math.sin(razi) * self.secLength
+        Ey = self.originY + math.cos(razi) * self.secLength
+
+        Ax = self.originX + math.sin(raziminus) * self.envWidth
+        Ay= self.originY + math.cos(raziminus) * self.envWidth
+
+        Bx = self.originX + math.sin(raziplus) * self.envWidth
+        By= self.originY + math.cos(raziplus) * self.envWidth
+
+        Cx = Ex + math.sin(raziplus) * self.envWidth
+        Cy= Ey + math.cos(raziplus) * self.envWidth
+
+        Dx = Ex + math.sin(raziminus) * self.envWidth
+        Dy= Ey + math.cos(raziminus) * self.envWidth
+        
+        coords = [[Ax,Ay],[Bx,By],[Cx,Cy],[Dx,Dy]]
+        uri = "polygon?crs={}".format(QDrillerDialog.datastore.projectCRS.authid())
+        envLayer = QgsVectorLayer(uri, "temp Envelope", "memory")
+        pr = envLayer.dataProvider()
+        
+        points = []
+
+        for c in coords:
+            point = QgsPoint(c[0], c[1])
+            geom = QgsGeometry.fromPoint(point)
+            points.append(point)
+    
+
+        feat = QgsFeature()
+        penvelope = QgsGeometry.fromPolygon([points])
+        feat.setGeometry(penvelope)
+                    
+        pr.addFeatures([feat])
+        return envLayer
+    
     def filterHoles(self):
         #function to filter the available holes to that within the envelope and set the selected drillholes to this
-        print "filtering not implemented yet"
+        """
+        #try clearing any previous instance of the envelope layer
+        testlyr = QgsMapLayerRegistry.instance().mapLayersByName("temp Envelope")
         
+        if len(testlyr)>0:
+            for lyr in testlyr:
+                QgsMapLayerRegistry.instance().removeMapLayer(lyr.id())"""
+        #define envelope 
+        envelope = self.createEnvelope()
+        #QgsMapLayerRegistry.instance().addMapLayer(envelope) #mainly for debug
+        #access drill trace file- generate if not done already- dont forget to add to the list of files if generated from here
+        #or consider generating it dynamically again?
+        tracelayerpath = os.path.normpath(r"{}\{}_traces_P.shp".format(QDrillerDialog.datastore.projectdir, QDrillerDialog.datastore.projectname))
+        traceLayer = QgsVectorLayer(tracelayerpath, "traces", 'ogr')
+        
+        if not traceLayer.isValid():
+            print "layer from shape file and path invalid"
+            QDrillerDialog.datastore.createPlanTrace()
+            traceLayer = QgsVectorLayer(tracelayerpath, "traces", 'ogr')
+        else:
+            #perform intersection and create list of drillhole ID's
+            enviter = envelope.getFeatures()
+            traceiter = traceLayer.getFeatures()
+            intersectionTraces = []
+
+            for env in enviter:
+                penv = env.geometry()
+                #check if collars fall inside
+                        
+                for trace in traceiter:
+                    gtrace = trace.geometry()
+                    trace.attribute("HoleID")
+                    if gtrace.intersects(penv):
+                        intersectionTraces.append(trace.attribute("HoleID"))
+                        print "trace added", trace.attribute("HoleID") 
+        
+        #reset selected list so only holes picked up by the filter will populate it
+        #for i in xrange(self.lstSelDH.count()):
+        #the for loop is not used because it doesnt keep up with the row number changes as items are removed
+        #resulting in some being left behind
+        while self.lstSelDH.count()>0:
+            self.lstAvailDH.addItem(self.lstSelDH.takeItem(0))
+            
+        #send list to the selected drillholes list in the gui
+        for holes in intersectionTraces:
+        #this is not right need to look into
+            isavail = self.lstAvailDH.findItems(holes, QtCore.Qt.MatchExactly)
+            if len(isavail) >0:
+                print "is avail", holes
+                self.lstSelDH.addItem(self.lstAvailDH.takeItem(
+                                    self.lstAvailDH.row(isavail[0]))
+                                    )
+            trash = None
+            
     def populateDHloglist(self):
         #generate a list of available downhole log datasets
         availLogNames =[]
