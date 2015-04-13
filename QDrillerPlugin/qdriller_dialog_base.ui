@@ -476,7 +476,7 @@
     <widget class="QPushButton" name="btnDelLayer">
      <property name="geometry">
       <rect>
-       <x>160</x>
+       <x>180</x>
        <y>170</y>
        <width>75</width>
        <height>23</height>
@@ -484,6 +484,19 @@
      </property>
      <property name="text">
       <string>Delete Layer</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btnAddtoCanvas">
+     <property name="geometry">
+      <rect>
+       <x>100</x>
+       <y>170</y>
+       <width>75</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Add to Map</string>
      </property>
     </widget>
    </widget>
@@ -604,6 +617,39 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
+ <tabstops>
+  <tabstop>ledProjDir</tabstop>
+  <tabstop>ledCol</tabstop>
+  <tabstop>ledSur</tabstop>
+  <tabstop>ledDHlogs</tabstop>
+  <tabstop>ledProjName</tabstop>
+  <tabstop>btnCRS</tabstop>
+  <tabstop>btnCreatePrj</tabstop>
+  <tabstop>btnColbrowse</tabstop>
+  <tabstop>btnDHlogbrowse</tabstop>
+  <tabstop>btnSurvbrowse</tabstop>
+  <tabstop>btnPrjDirbrowse</tabstop>
+  <tabstop>lstDHlogs</tabstop>
+  <tabstop>btnCreateLog</tabstop>
+  <tabstop>cmbLogSelector</tabstop>
+  <tabstop>chkLog2can</tabstop>
+  <tabstop>ledDHtickspace</tabstop>
+  <tabstop>chkDHTick</tabstop>
+  <tabstop>chkEohlab</tabstop>
+  <tabstop>btnCreateCol</tabstop>
+  <tabstop>chkColl2can</tabstop>
+  <tabstop>lstExistingLayers</tabstop>
+  <tabstop>btnCreateTrace</tabstop>
+  <tabstop>chkTrace2can</tabstop>
+  <tabstop>btnDelLayer</tabstop>
+  <tabstop>btnSectionWindow</tabstop>
+  <tabstop>button_box</tabstop>
+  <tabstop>btnLoadPrj</tabstop>
+  <tabstop>btnSavePrj</tabstop>
+  <tabstop>btnAddLog</tabstop>
+  <tabstop>btnRemlog</tabstop>
+  <tabstop>ledCRS</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

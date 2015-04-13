@@ -96,6 +96,9 @@
            <height>30</height>
           </size>
          </property>
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
+         </property>
         </widget>
        </item>
        <item>
@@ -173,7 +176,7 @@
   <widget class="QDockWidget" name="dockWidget">
    <property name="minimumSize">
     <size>
-     <width>200</width>
+     <width>218</width>
      <height>240</height>
     </size>
    </property>
@@ -202,17 +205,11 @@
          <height>200</height>
         </size>
        </property>
-       <widget class="QWidget" name="verticalLayoutWidget_2">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>201</width>
-          <height>291</height>
-         </rect>
-        </property>
-        <layout class="QVBoxLayout" name="lytLegend"/>
-       </widget>
+       <layout class="QVBoxLayout" name="verticalLayout_3">
+        <item>
+         <layout class="QVBoxLayout" name="lytLegend"/>
+        </item>
+       </layout>
       </widget>
      </item>
     </layout>

@@ -75,6 +75,7 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
         self.btnSavePrj.clicked.connect(self.saveProject)
         self.btnSurvbrowse.clicked.connect(lambda:self.showFileBrowser("surveyfile"))
         self.btnCRS.clicked.connect(self.fetchCRS)
+        self.btnAddtoCanvas.clicked.connect(self.addtoCanvas)
         
         
         #Plan View Objects Buttons
@@ -177,6 +178,17 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
         for keys in QDrillerDialog.datastore.existingLayersDict:
             newitem = self.lstExistingLayers.addItem(keys)
             
+    def addtoCanvas(self):
+        #add layers from the existing layers list to the main map canvas
+        addlist=[]
+        for item in self.lstExistingLayers.selectedItems():
+            addlist.append(item.text())
+            
+        for names in addlist:
+            path = QDrillerDialog.datastore.existingLayersDict[names]
+            layer = QgsVectorLayer(path, names, "ogr")
+            QgsMapLayerRegistry.instance().addMapLayer(layer)
+            
     def deleteLayerFromList(self):
         # a function to delete log shapefile from disk, remove from List widget 
         # and remove from the internal existing layers list
@@ -264,10 +276,11 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
     def printout(self):
         print QDrillerDialog.datastore.collarfile
         
+
+class DataStore(QtCore.QObject):
 #class for handling the data inputs. This will store data inputs, as well as 
 #provide the capability for loading and saving projects 
 #ie previous variable setups)
-class DataStore(QtCore.QObject):
     #define signals
     fileCreated = QtCore.pyqtSignal()
     projectLoaded = QtCore.pyqtSignal()
@@ -397,11 +410,7 @@ class DataStore(QtCore.QObject):
         layername = os.path.splitext(os.path.basename(outputlayer))[0]
         self.existingLayersDict[layername]= outputlayer
         self.fileCreated.emit()
-        
-    def selectCollars(self, envelope):
-        #a function to select collars that fall within an envelope, and return a drillhole XYS dictionary
-        pass
-        
+
 
 SECT_FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'sectionview_base.ui'))
@@ -666,7 +675,6 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
             
     def subsetDrillholes(self):
         #create the subset of drill XYZ to plot
-        #self.holes2plotXYZ = QDrillerDialog.datastore.drillholesXYZ #placeholder only, need to make function to perform subset
         #pull Collar names from the selection list
         templist = []    
         for i in xrange(self.lstSelDH.count()):
@@ -678,7 +686,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
             self.holes2plotXYZ[DH]= QDrillerDialog.datastore.drillholesXYZ[DH]
     
     def createEnvelope(self):
-        #define envelope _ consider having this in a function of its own that can be called and display envelope
+        #define envelope - consider having this in a function of its own that can be called and display envelope
         # as a preveiw in the main canvas
         razi = math.radians(self.secAzi)
         raziminus = math.radians(self.secAzi - 90)
@@ -722,7 +730,8 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
     def filterHoles(self):
         #function to filter the available holes to that within the envelope and set the selected drillholes to this
         """
-        #try clearing any previous instance of the envelope layer
+        #try clearing any previous instance of the envelope layer this is only necessary if it is being added to the 
+        #map registry here
         testlyr = QgsMapLayerRegistry.instance().mapLayersByName("temp Envelope")
         
         if len(testlyr)>0:

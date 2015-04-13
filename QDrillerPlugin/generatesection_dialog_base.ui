@@ -444,6 +444,29 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>ledSecName</tabstop>
+  <tabstop>ledOriginX</tabstop>
+  <tabstop>ledOriginY</tabstop>
+  <tabstop>ledAzi</tabstop>
+  <tabstop>ledSecLength</tabstop>
+  <tabstop>ledEnv</tabstop>
+  <tabstop>btnFilterHoles</tabstop>
+  <tabstop>btnAddDH</tabstop>
+  <tabstop>btnRemDH</tabstop>
+  <tabstop>btnAddDHLog</tabstop>
+  <tabstop>btnRemDHLog</tabstop>
+  <tabstop>btnDraw</tabstop>
+  <tabstop>lstAvailDH</tabstop>
+  <tabstop>lstAvailLogs</tabstop>
+  <tabstop>btnOriginX</tabstop>
+  <tabstop>btnFromLine</tabstop>
+  <tabstop>lstSelLogs</tabstop>
+  <tabstop>buttonBox</tabstop>
+  <tabstop>chkSurf</tabstop>
+  <tabstop>cmbDem</tabstop>
+  <tabstop>lstSelDH</tabstop>
+ </tabstops>
  <resources>
   <include location="resources.qrc"/>
  </resources>
