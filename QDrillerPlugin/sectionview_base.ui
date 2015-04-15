@@ -391,6 +391,14 @@
     <string>Select features using polygon</string>
    </property>
   </action>
+  <action name="actionManageSections">
+   <property name="text">
+    <string>Manage Sections</string>
+   </property>
+   <property name="toolTip">
+    <string>Manage available sections</string>
+   </property>
+  </action>
  </widget>
  <resources>
   <include location="resources.qrc"/>

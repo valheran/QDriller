@@ -24,13 +24,14 @@
 import os
 import math
 import sys
+import shutil
 
 try:
     import xml.etree.cElementTree as ET
 except ImportError:
     import xml.etree.ElementTree as ET
 
-
+import GdalTools_utils as gTools
 from PyQt4 import QtGui, uic, QtCore, Qt
 from PyQt4.QtGui import * 
 
@@ -375,7 +376,7 @@ class DataStore(QtCore.QObject):
             
         savefile = ET.ElementTree(root)
         savefile.write(self.savefilepath)
-        #also set up for sectionviewer to throw a list of section definition files to the datastore and be written here
+        
         
     def calcDrillholes(self):
     #read in from file and create the drillhole arrays for use
@@ -427,6 +428,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
         self.iface = iface
+        
         #initialise mapcanvas
         self.sectionCanvas = QgsMapCanvas()
         self.sectionCanvas.enableAntiAliasing(True)
@@ -444,7 +446,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.model = QgsLayerTreeModel(self.layertreeRoot)
         self.model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility)
         self.model.setFlag(QgsLayerTreeModel.AllowNodeReorder)
-        self.model.setFlag(QgsLayerTreeModel.AllowLegendChangeState)
+        #self.model.setFlag(QgsLayerTreeModel.AllowLegendChangeState)
         #self.model.setFlag(QgsLayerTreeModel.ShowLegend)
         self.legendView = QgsLayerTreeView()
         self.legendView.setModel(self.model)
@@ -461,7 +463,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.scaleBox.setMapCanvas(self.sectionCanvas)
         self.lytScale.addWidget(self.scaleBox)
         self.sectionCanvas.scaleChanged.connect(self.scaleBox.setScaleFromCanvas)
-        self.scaleBox.scaleChanged.connect(lambda: self.sectionCanvas.zoomScale(self.scaleBox.scale())) #doesnt seem to work yet
+        self.scaleBox.scaleChanged.connect(self.setScale) #doesnt seem to work yet
         
         #setup mouse coord tracking
         self.sectionCanvas.xyCoordinates.connect(self.dispCoords)
@@ -476,6 +478,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.navToolbar.addActions(self.mapNavActions.actions())
         self.sectionBar = self.addToolBar("Section Tools")
         self.sectionBar.addAction(self.actionGenerateSection)
+        self.sectionBar.addAction(self.actionManageSections)
         self.featureTools = self.addToolBar("Feature Tools")
         self.featureTools.addAction(self.actionIdentify)
 
@@ -486,6 +489,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.actionTouch.triggered.connect(self.mapTouch)
         self.actionGenerateSection.triggered.connect(self.genSec)
         self.actionIdentify.triggered.connect(self.mapIdentify)
+        self.actionManageSections.triggered.connect(self.manageSections)
         
         # create the map tool(s)
         self.tool_zoomin = QgsMapToolZoom(self.sectionCanvas, False)
@@ -503,7 +507,9 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
        # self.legendView.currentLayerChanged.connect(self.model.refreshLayerLegend)
         #load up any pre-existing sections
         
-        
+    def setScale(self):
+        scale = 1 / self.scaleBox.scale()
+        self.sectionCanvas.zoomScale(scale)
     def mapIdentify(self):
         self.sectionCanvas.setMapTool(self.tool_identify)
         self.dockIdent.setVisible(True)
@@ -542,6 +548,10 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         
         self.genSecDialog.show()
         
+    def manageSections(self):
+        self.manSecDialog = SectionManager(self)
+        self.manSecDialog.sectionDeleted.connect(self.refreshGui)
+        self.manSecDialog.show()
         
     def loadSection(self, sectionpath):
         #function to load all the layers of a generated section using the Section Definition File
@@ -566,10 +576,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.visibilitySetter(lgroup, QtCore.Qt.Checked)
         #self.layertreeRoot.blockSignals(False)
         self.sectionCanvas.setExtent(extent)
-        
-    def forceLegendRefresh(self):
-        pass
-        
+
     def refreshGui(self):
         #Reload the sections
         print "Section View Refresh Called"
@@ -616,7 +623,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         print "antialiasing", self.sectionCanvas.antiAliasingEnabled()
         
     def printout(self):
-        print "deactivated signal triggered"
+        print self.scaleBox.scale()
         
     def closeEvent(self, event):
         #clean up map registry of files that were opened in section view
@@ -643,7 +650,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.setupUi(self)
         self.iface = iface
         self.canvas = self.iface.mapCanvas()
-        print self.iface
+        
         #initialise variables to store settings
         self.secName = None
         self.originX = None
@@ -657,6 +664,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.selectedLogs = []
         self.availDrillholes = []
         self.selDrillholes = []
+        self.demPath = None
         
         #set the crs using the same hardcode as in the section viewer
         self.crs= QgsCoordinateReferenceSystem()
@@ -674,6 +682,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.btnFilterHoles.clicked.connect(self.filterHoles)
         self.btnOrigin.clicked.connect(self.drawSectionLine)
         self.btnFromLine.clicked.connect(self.fromSelectedLine)
+        self.btnDem.clicked.connect(self.showRasterFileBrowser)
         
         #setup map tools
         self.tool_drawline = SectionFromDrawTool(self.iface.mapCanvas())
@@ -687,6 +696,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.ledAzi.textChanged.connect(lambda: self.setVars("azi", self.ledAzi.text()))
         self.ledEnv.textChanged.connect(lambda: self.setVars("Env", self.ledEnv.text()))
         self.ledSecLength.textChanged.connect(lambda: self.setVars("seclength", self.ledSecLength.text()))
+        self.ledDem.textChanged.connect(lambda: self.setVars("DEM", self.ledDem.text()))
         
         #populate lists
         self.populateDHloglist()
@@ -716,6 +726,8 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
             self.envWidth = float(value)
         elif target == "seclength":
             self.secLength = float(value)
+        elif target == "DEM":
+            self.demPath = value
             
     def subsetDrillholes(self):
         #create the subset of drill XYZ to plot
@@ -864,7 +876,6 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
                                     )
             trash = None
         
-        
     def populateDHloglist(self):
         #generate a list of available downhole log datasets
         availLogNames =[]
@@ -938,10 +949,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.showEnvelope()
             
     def generateSection(self):
-        #create directory to store the relevant section files
-        ### maybe at some point put in here a warning if the directory already exists?
-        #run through and check all info required is present
-        
+              
         if self.secName is None:
             self.messageBar.pushMessage("Must have a Section Name")
             return
@@ -970,6 +978,10 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         if self.lstSelDH.count() == 0:
             self.messageBar.pushMessage("No Drillholes have been Selected")
             return
+        if self.chkDem.isChecked: 
+            if self.demPath is None:
+                self.messageBar.pushMessage("No DEM has been Selected")\
+            
         #run the methods to draw the files
         self.subsetDrillholes()
         #create drill traces
@@ -979,20 +991,18 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
                                         QDrillerDialog.datastore.projectname)
                                         )
         #create directory to store the relevant section files
-        ### maybe at some point put in here a warning if the directory already exists?
         sectiondirectory = os.path.dirname(outputlayer)
         try: 
             os.makedirs(sectiondirectory)
         except OSError:
             if not os.path.isdir(sectiondirectory):
                 raise
-
+                
+        #create drill traces
         secplane = [self.originX, self.originY, self.secAzi]
-            
         QDUtils.writeTraceLayer(self.holes2plotXYZ, outputlayer, plan=False, sectionplane=secplane, loadcanvas=False, crs=self.crs)
-        sectionLayers
-       
-        # here need to include code to write to section definition file
+
+        # collect info for writing to section definition file
         sectionLayers.append(outputlayer)
         
         #create downhole logs
@@ -1023,7 +1033,17 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         else:
             secFacing = (self.secAzi +360) - 90
             
-        # here need to include code to write to section definition file
+        #create surface profile if requested
+        if self.chkDem.isChecked():
+            outputlayer = os.path.normpath(r"{}\{}\{}_DEM.shp".format(
+                                        QDrillerDialog.datastore.projectdir,self.secName,
+                                        QDrillerDialog.datastore.projectname)
+                                        )
+            rlayer = QgsRasterLayer(self.demPath, "DEM")
+            QDUtils.ProfileFromRaster(self.originX, self.originY, self.secAzi, self.secLength, rlayer, outputlayer)
+            sectionLayers.append(outputlayer)
+            
+        # write to section definition file
         secDef= ET.Element("sectionDefinition", {"name":self.secName})
         for lyrs in sectionLayers:
             ET.SubElement(secDef, "layer").text = lyrs
@@ -1038,6 +1058,19 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.sectionGenerated.emit()
         self.ledSecName.setText("")
         self.secName = None
+        QDrillerDialog.datastore.saveProjectData()
+        
+        
+    def showRasterFileBrowser(self):
+        #still to implement
+             
+        lastUsedFilter = gTools.FileFilter.lastUsedRasterFilter()
+        inputFile = gTools.FileDialog.getOpenFileName(self, self.tr( "Select DEM" ), gTools.FileFilter.allRastersFilter(), lastUsedFilter )
+        if not inputFile:
+            return
+        gTools.FileFilter.setLastUsedRasterFilter(lastUsedFilter)
+        
+        self.ledDem.setText(inputFile)
         
     def printout(self):
         print "deactivated signal triggered"
@@ -1046,7 +1079,67 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
     #clean up rubber bands on close
         self.canvas.scene().removeItem(self.envRB)
         self.canvas.scene().removeItem(self.sectionRB)
+
+MAN_FORM_CLASS, _ = uic.loadUiType(os.path.join(
+os.path.dirname(__file__), 'managesections_dialog_base.ui'))
+
+
+class SectionManager(QtGui.QDialog, MAN_FORM_CLASS):
+    sectionDeleted = QtCore.pyqtSignal()
+    def __init__(self, parent=None):
+        """Constructor."""
+        super(SectionManager, self).__init__(parent)
+        # Set up the user interface from Designer.
+        # After setupUI you can access any designer object by doing
+        # self.<objectname>, and you can use autoconnect slots - see
+        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
+        # #widgets-and-dialogs-with-auto-connect
+        self.setupUi(self)  
         
+        self.messageBar = QgsMessageBar()
+        self.lytMessage.addWidget(self.messageBar)
+        #connect buttons    
+        self.btnDelete.clicked.connect(self.delSection)
+
+        self.popList()
+        
+    def popList(self):
+        self.lstSections.clear()
+        for sections in QDrillerDialog.datastore.availSectionDict:
+            self.lstSections.addItem(sections)
+        
+    def delSection(self):
+        for item in self.lstSections.selectedItems():
+            defpath = QDrillerDialog.datastore.availSectionDict[item.text()]
+            
+            tree = ET.parse(defpath)
+            dfn = tree.getroot()
+            #pull all the layer paths from the definition file
+            layerlist = []
+            for lyrs in dfn.findall("layer"):
+                layerlist.append(lyrs.text)
+            
+            #Remove layers from registry
+            layerstoclose = []
+            for lyr in layerlist:
+                lname =os.path.splitext(os.path.basename(lyr))[0]
+                ltoclose = QgsMapLayerRegistry.instance().mapLayersByName(lname)
+                for i in ltoclose:
+                    layerstoclose.append(i.id())
+                        
+            QgsMapLayerRegistry.instance().removeMapLayers(layerstoclose)
+            dirtodel = os.path.dirname(defpath)
+            shutil.rmtree(dirtodel)
+            #remove from section dictionary
+            del QDrillerDialog.datastore.availSectionDict[item.text()]
+            self.popList()
+            QDrillerDialog.datastore.saveProjectData()
+            msg = " Section {} has been removed and project saved".format(lname)
+            self.messageBar.pushMessage(msg)
+            self.sectionDeleted.emit()
+            
+        
+           
 class SVMenuProvider(QgsLayerTreeViewMenuProvider):
     def __init__(self, view, iface):
         QgsLayerTreeViewMenuProvider.__init__(self)

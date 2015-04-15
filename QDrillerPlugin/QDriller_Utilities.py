@@ -263,7 +263,45 @@ class LogDrawer:
             name = os.path.splitext(os.path.basename(self.outlogfile))[0]
             loglayer =QgsVectorLayer(self.outlogfile, name, 'ogr')
             QgsMapLayerRegistry.instance().addMapLayer(loglayer)
-	
+
+            
+class ProfileFromRaster:
+    def __init__(self, originX, originY, azi, sectionlength, rasterlayer, outfile):
+        
+        rpr = rasterlayer.dataProvider()
+        razi = math.radians(azi)
+        origin = QgsPoint(originX, originY)
+        traverseList = [origin]
+        pixSize = rasterlayer.rasterUnitsPerPixelX()
+        advance = 2 * pixSize
+        progress = advance
+        while progress < sectionlength:
+            newx = originX + math.sin(razi) * progress
+            newy = originY + math.cos(razi) * progress
+            newpoint = QgsPoint(newx, newy)
+            traverseList.append(newpoint)
+            progress += advance
+            
+        progress = 0
+        nodestring = []
+        for point in traverseList:
+            sectionX = progress
+            ele = rpr.identify(point, 1).results()
+            for band, value in ele.items():
+                node = QgsPoint(sectionX, value)
+                nodestring.append(node)
+            progress += advance
+
+        linestring = QgsGeometry.fromPolyline(nodestring)
+        vlayer = QgsVectorLayer("linestring?crs=epsg:4328", "profile", "memory")
+        vpr = vlayer.dataProvider()
+        writer = QgsVectorFileWriter(outfile, "CP1250", vpr.fields(), QGis.WKBLineString, vpr.crs(), "ESRI Shapefile")
+        feat = QgsFeature()
+        feat.setGeometry(linestring)
+        writer.addFeature(feat)
+        del writer
+       
+    
 
 def planGeomBuilder(coordlist):
     #takes a dictionary of lists (XYZ) coords. and creates a list of XY coord pairs(ie for plan view.
