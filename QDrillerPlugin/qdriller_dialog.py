@@ -23,6 +23,7 @@
 
 import os
 import math
+import sys
 
 try:
     import xml.etree.cElementTree as ET
@@ -38,7 +39,7 @@ from qgis.gui import *
 
 #import module with all the technical backend code
 import QDriller_Utilities as QDUtils
-
+sys.excepthook = sys.__excepthook__
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'qdriller_dialog_base.ui'))
 
@@ -350,8 +351,7 @@ class DataStore(QtCore.QObject):
             path = sects.text
             self.availSectionDict[name] = path
         
-        print "section Dict", self.availSectionDict
-        #emit signal?
+        #emit signal
         self.projectLoaded.emit()
         
     def saveProjectData(self):
@@ -442,14 +442,15 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.bridge = QgsLayerTreeMapCanvasBridge(self.layertreeRoot, self.sectionCanvas)
         self.bridge.setAutoSetupOnFirstLayer(False)  #stop the CRS and units being changed when loading layers
         self.model = QgsLayerTreeModel(self.layertreeRoot)
+        self.model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility)
+        self.model.setFlag(QgsLayerTreeModel.AllowNodeReorder)
+        self.model.setFlag(QgsLayerTreeModel.AllowLegendChangeState)
+        #self.model.setFlag(QgsLayerTreeModel.ShowLegend)
         self.legendView = QgsLayerTreeView()
         self.legendView.setModel(self.model)
         self.menupr = SVMenuProvider(self.legendView, self.iface)
         self.legendView.setMenuProvider(self.menupr)
         self.lytLegend.addWidget(self.legendView)
-        self.model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility)
-        self.model.setFlag(QgsLayerTreeModel.AllowNodeReorder)
-        self.model.setFlag(QgsLayerTreeModel.ShowLegend)
         
         #setup identify box NOTE has been set up in designer, given the name identTree
         #self.identTree = QtGui.QTreeWidget()
@@ -495,10 +496,13 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         
         #maptool signals
         
+        self.refreshGui()
         #listen for signals
         self.layertreeRoot.visibilityChanged.connect(self.visibilitySetter)
+        self.legendView.currentLayerChanged.connect(self.getFacing)
+       # self.legendView.currentLayerChanged.connect(self.model.refreshLayerLegend)
         #load up any pre-existing sections
-        self.refreshGui()
+        
         
     def mapIdentify(self):
         self.sectionCanvas.setMapTool(self.tool_identify)
@@ -506,32 +510,33 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
 
     def mapPan(self):
         self.sectionCanvas.setMapTool(self.tool_pan)
-        print "pan action triggered"
-        centre = self.sectionCanvas.center()
-        print "centre of canvas", centre.toString()
+        #print "pan action triggered"
+        #centre = self.sectionCanvas.center()
+        #print "centre of canvas", centre.toString()
         
     def mapTouch(self):
         self.sectionCanvas.setMapTool(self.tool_touch)
-        print "touch action triggered"
-        self.mapInformation()
+        #print "touch action triggered"
+        #self.mapInformation()
         
     def zoom_in(self): #could these type things be set up in a lambda connection
         self.sectionCanvas.setMapTool(self.tool_zoomin)
-        print "zoom in action triggered"
+        #print "zoom in action triggered"
         
     def zoom_out(self): #could these type things be set up in a lambda connection
         self.sectionCanvas.setMapTool(self.tool_zoomout)
-        print "zoom out action triggered"
+        #print "zoom out action triggered"
+        
         
     def dispCoords(self, point):
         xCoord = int(point.x())
         yCoord = int(point.y())
-        display = "{}m,{}mRL".format(xCoord, yCoord)
+        display = "{}m, {}mRL".format(xCoord, yCoord)
         self.ledCoord.setText(display)
         
     def genSec(self):
-        print "gensec action triggered"
-        self.genSecDialog = GenerateSection()
+        
+        self.genSecDialog = GenerateSection(self.iface)
         #listen out for sections to be generated
         self.genSecDialog.sectionGenerated.connect(self.refreshGui)
         
@@ -541,7 +546,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
     def loadSection(self, sectionpath):
         #function to load all the layers of a generated section using the Section Definition File
         #read the definition file
-        self.layertreeRoot.blockSignals(True)
+        #self.layertreeRoot.blockSignals(True)
         tree = ET.parse(sectionpath)
         dfn = tree.getroot()
         #pull all the layer paths from the definition file
@@ -559,9 +564,11 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
             lgroup.addLayer(l)
             extent= l.extent()
         self.visibilitySetter(lgroup, QtCore.Qt.Checked)
-        self.layertreeRoot.blockSignals(False)
+        #self.layertreeRoot.blockSignals(False)
         self.sectionCanvas.setExtent(extent)
         
+    def forceLegendRefresh(self):
+        pass
         
     def refreshGui(self):
         #Reload the sections
@@ -584,7 +591,19 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
                 
             node.setVisible(QtCore.Qt.Checked)
             node.setExpanded(True)
-        
+    
+    def getFacing(self):
+        group = self.legendView.currentGroupNode()
+        groupname = group.name()
+        path = os.path.normpath("{}\\{}\\{}.qdsd".format(QDrillerDialog.datastore.projectdir, groupname, groupname))
+        tree = ET.parse(path)
+        root = tree.getroot()
+        try:
+            secFacing = root.find("facing").text
+            self.ledFacing.setText(str(secFacing))
+        except AttributeError:
+            self.ledFacing.setText("N/A")
+            
     def mapInformation(self):
         print "canvas extent", self.sectionCanvas.extent()
         self.sectionCanvas.refresh()
@@ -595,6 +614,9 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         print "Canvas Scale", self.sectionCanvas.scale()
         print"canvas setting scale", self.sectionCanvas.mapSettings().scale
         print "antialiasing", self.sectionCanvas.antiAliasingEnabled()
+        
+    def printout(self):
+        print "deactivated signal triggered"
         
     def closeEvent(self, event):
         #clean up map registry of files that were opened in section view
@@ -610,7 +632,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
 
     sectionGenerated = QtCore.pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, iface, parent=None):
         """Constructor."""
         super(GenerateSection, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -619,14 +641,16 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        
+        self.iface = iface
+        self.canvas = self.iface.mapCanvas()
+        print self.iface
         #initialise variables to store settings
         self.secName = None
         self.originX = None
         self.originY = None
         self.secAzi = None      #may need to investigate the maths behind this more to get facing
         self.secFacing = None
-        self.envWidth = None
+        self.envWidth = 25
         self.secLength = None
         self.holes2plotXYZ = {}
         self.availLogs ={}
@@ -638,6 +662,9 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.crs= QgsCoordinateReferenceSystem()
         self.crs.createFromUserInput("EPSG:4328")
         
+        self.messageBar = QgsMessageBar()
+        self.lytMessage.addWidget(self.messageBar)
+        
         #connect GUI buttons
         self.btnAddDHLog.clicked.connect(self.addDHLog)
         self.btnRemDHLog.clicked.connect(self.remDHLog)
@@ -645,7 +672,13 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.btnRemDH.clicked.connect(self.remDH)
         self.btnDraw.clicked.connect(self.generateSection)
         self.btnFilterHoles.clicked.connect(self.filterHoles)
+        self.btnOrigin.clicked.connect(self.drawSectionLine)
+        self.btnFromLine.clicked.connect(self.fromSelectedLine)
         
+        #setup map tools
+        self.tool_drawline = SectionFromDrawTool(self.iface.mapCanvas())
+        self.envRB = QgsRubberBand(self.canvas, QGis.Polygon)
+        self.sectionRB = QgsRubberBand(self.canvas, QGis.Line)
         
         #connect GUI with variables
         self.ledSecName.textChanged.connect(lambda: self.setVars("name", self.ledSecName.text()))
@@ -657,6 +690,17 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         
         #populate lists
         self.populateDHloglist()
+        
+        #listen for signals
+        self.tool_drawline.calcDone.connect(self.updateFromDraw)
+        self.ledEnv.textChanged.connect(self.showEnvelope)
+        self.ledOriginX.textChanged.connect(self.showEnvelope)
+        self.ledOriginY.textChanged.connect(self.showEnvelope)
+        self.ledAzi.textChanged.connect(self.showEnvelope)
+        self.ledSecLength.textChanged.connect(self.showEnvelope)
+        
+        self.buttonBox.rejected.connect(lambda: self.canvas.scene().removeItem(self.envRB))  #clean up rubber bands on close
+        self.buttonBox.rejected.connect(lambda: self.canvas.scene().removeItem(self.sectionRB))
         
     def setVars(self, target, value):
         
@@ -707,26 +751,43 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         Dx = Ex + math.sin(raziminus) * self.envWidth
         Dy= Ey + math.cos(raziminus) * self.envWidth
         
-        coords = [[Ax,Ay],[Bx,By],[Cx,Cy],[Dx,Dy]]
-        uri = "polygon?crs={}".format(QDrillerDialog.datastore.projectCRS.authid())
-        envLayer = QgsVectorLayer(uri, "temp Envelope", "memory")
-        pr = envLayer.dataProvider()
+        coords = [[[Ax,Ay],[Bx,By],[Cx,Cy],[Dx,Dy]],[self.originX, self.originY],[Ex,Ey]]
         
-        points = []
+  
+        return coords
+    def showEnvelope(self):
+        #check that all required info is present
+        if self.originX is None:
+            return
+        if self.originY is None:
+            return
+        if self.secAzi is None:
+            return
+        if self.secLength is None:
+            return
+        if self.envWidth is None:
+            return
+            
+        coords = self.createEnvelope()
+        
+        self.envRB.reset(QGis.Polygon)
+        self.sectionRB.reset(QGis.Line)
+        
+        self.envRB.setBorderColor(QtCore.Qt.red)
+        self.sectionRB.setColor(QtCore.Qt.red)
+        self.sectionRB.setWidth(1)
 
-        for c in coords:
+        for c in coords[0]:
             point = QgsPoint(c[0], c[1])
             geom = QgsGeometry.fromPoint(point)
-            points.append(point)
-    
-
-        feat = QgsFeature()
-        penvelope = QgsGeometry.fromPolygon([points])
-        feat.setGeometry(penvelope)
-                    
-        pr.addFeatures([feat])
-        return envLayer
-    
+            self.envRB.addPoint(point, True)
+            
+        self.sectionRB.addPoint(QgsPoint(coords[1][0], coords[1][1]), False)
+        self.sectionRB.addPoint(QgsPoint(coords[2][0], coords[2][1]), True)
+        
+        self.sectionRB.show()
+        self.envRB.show()
+        
     def filterHoles(self):
         #function to filter the available holes to that within the envelope and set the selected drillholes to this
         """
@@ -738,8 +799,27 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
             for lyr in testlyr:
                 QgsMapLayerRegistry.instance().removeMapLayer(lyr.id())"""
         #define envelope 
-        envelope = self.createEnvelope()
+        eCoords = self.createEnvelope()
+        
+        uri = "polygon?crs={}".format(QDrillerDialog.datastore.projectCRS.authid())
+        envLayer = QgsVectorLayer(uri, "temp Envelope", "memory")
+        pr = envLayer.dataProvider()
+        
+        points = []
+
+        for c in eCoords[0]:
+            point = QgsPoint(c[0], c[1])
+            geom = QgsGeometry.fromPoint(point)
+            points.append(point)
+    
+
+        feat = QgsFeature()
+        penvelope = QgsGeometry.fromPolygon([points])
+        feat.setGeometry(penvelope)
+                    
+        pr.addFeatures([feat])
         #QgsMapLayerRegistry.instance().addMapLayer(envelope) #mainly for debug
+        
         #access drill trace file- generate if not done already- dont forget to add to the list of files if generated from here
         #or consider generating it dynamically again?
         tracelayerpath = os.path.normpath(r"{}\{}_traces_P.shp".format(QDrillerDialog.datastore.projectdir, QDrillerDialog.datastore.projectname))
@@ -751,7 +831,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
             traceLayer = QgsVectorLayer(tracelayerpath, "traces", 'ogr')
         else:
             #perform intersection and create list of drillhole ID's
-            enviter = envelope.getFeatures()
+            enviter = envLayer.getFeatures()
             traceiter = traceLayer.getFeatures()
             intersectionTraces = []
 
@@ -783,7 +863,8 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
                                     self.lstAvailDH.row(isavail[0]))
                                     )
             trash = None
-            
+        
+        
     def populateDHloglist(self):
         #generate a list of available downhole log datasets
         availLogNames =[]
@@ -799,36 +880,96 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         #generate a list of available drillholes
         for holes in QDrillerDialog.datastore.drillholesXYZ.keys():
             self.lstAvailDH.addItem(holes)
-        
             
     def addDHLog(self):
-        print "addDHLog function called"
+
         for item in self.lstAvailLogs.selectedItems():
             self.lstSelLogs.addItem(self.lstAvailLogs.takeItem(self.lstAvailLogs.row(item)))
        
-        
     def remDHLog(self):
-        print "remDHLog function called"
-        
+
         for item in self.lstSelLogs.selectedItems():
             self.lstAvailLogs.addItem(self.lstSelLogs.takeItem(self.lstSelLogs.row(item)))
             
     def addDH(self):
-        print "addDH function called"
 
         for item in self.lstAvailDH.selectedItems():
             self.lstSelDH.addItem(self.lstAvailDH.takeItem(self.lstAvailDH.row(item)))
         
     def remDH(self):
-        print "remDH function called"
-
+    
         for item in self.lstSelDH.selectedItems():
             self.lstAvailDH.addItem(self.lstSelDH.takeItem(self.lstSelDH.row(item)))
 
+    def drawSectionLine(self):
+        self.iface.mapCanvas().setMapTool(self.tool_drawline)
+        
+    def updateFromDraw(self):
+        #deactivate the drawing tool
+        self.iface.actionPan().trigger()
+        #refocus window
+        self.activateWindow()
+        #update all the variables
+        self.ledOriginX.setText(str(round(self.tool_drawline.origX,0)))
+        self.ledOriginY.setText(str(round(self.tool_drawline.origY,0)))
+        self.ledAzi.setText(str(round(self.tool_drawline.azi,0)))
+        self.ledSecLength.setText(str(round(self.tool_drawline.length, 0)))
+        
+        self.showEnvelope()
+        
+    def fromSelectedLine (self):
+        #generate section parameters from currently selected linecache
+        acLayer = self.iface.activeLayer()
+        if acLayer.geometryType() != 1:
+            self.messageBar.pushMessage("must be a line")
+        elif acLayer.selectedFeatureCount() != 1:
+            self.messageBar.pushMessage("please select 1 line feature")
+        else:
+            feats = acLayer.selectedFeatures()
+            feat = feats[0]
+            geom = feat.geometry()
+            start = geom.vertexAt(0)
+            end = geom.vertexAt(1)
+            self. ledAzi.setText(str(round(start.azimuth(end), 0)))
+            self.ledSecLength.setText(str(round(math.sqrt(start.sqrDist(end)),0)))
+            self.ledOriginX.setText(str(round(start.x())))
+            self.ledOriginY.setText(str(round(start.y())))
+            
+        self.showEnvelope()
+            
     def generateSection(self):
         #create directory to store the relevant section files
         ### maybe at some point put in here a warning if the directory already exists?
+        #run through and check all info required is present
         
+        if self.secName is None:
+            self.messageBar.pushMessage("Must have a Section Name")
+            return
+            
+        newdir = os.path.normpath(r"{}\{}".format(
+                                        QDrillerDialog.datastore.projectdir,self.secName,)
+                                )
+        if os.path.isdir(newdir):
+            self.messageBar.pushMessage("Section already Exists")
+            return
+        if self.originX is None:
+            self.messageBar.pushMessage("Section Location Missing Parameters")
+            return
+        if self.originY is None:
+            self.messageBar.pushMessage("Section Location Missing Parameters")
+            return
+        if self.secAzi is None:
+            self.messageBar.pushMessage("Section Location Missing Parameters")
+            return
+        if self.secLength is None:
+            self.messageBar.pushMessage("Section Location Missing Parameters")
+            return
+        if self.envWidth is None:
+            self.messageBar.pushMessage("Section Location Missing Parameters")
+            return
+        if self.lstSelDH.count() == 0:
+            self.messageBar.pushMessage("No Drillholes have been Selected")
+            return
         #run the methods to draw the files
         self.subsetDrillholes()
         #create drill traces
@@ -847,7 +988,6 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
                 raise
 
         secplane = [self.originX, self.originY, self.secAzi]
-        print "secplane", secplane
             
         QDUtils.writeTraceLayer(self.holes2plotXYZ, outputlayer, plan=False, sectionplane=secplane, loadcanvas=False, crs=self.crs)
         sectionLayers
@@ -862,7 +1002,6 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
             name = self.lstSelLogs.item(i).text()
             logtargetDict[name] = self.availLogs[name] 
         
-        print "logtargetDict", logtargetDict
         #code to generate log 
         for k in logtargetDict:
             
@@ -871,20 +1010,25 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
             outputlayer = os.path.normpath("{}\\{}\\{}_{}_S.shp".format(QDrillerDialog.datastore.projectdir,
                                             self.secName, QDrillerDialog.datastore.projectname, logname)
                                             )
-            print "outputlayer", outputlayer
+
             secplane = [self.originX, self.originY, self.secAzi]
-            print "secplane", secplane
             
             QDUtils.LogDrawer(self.holes2plotXYZ, logtarget, outputlayer, plan=False, 
                                 sectionplane=secplane, crs=self.crs, loadcanvas=False)
             
             sectionLayers.append(outputlayer)
-
+        
+        if self.secAzi > 90:
+            secFacing = self.secAzi - 90
+        else:
+            secFacing = (self.secAzi +360) - 90
+            
         # here need to include code to write to section definition file
         secDef= ET.Element("sectionDefinition", {"name":self.secName})
         for lyrs in sectionLayers:
             ET.SubElement(secDef, "layer").text = lyrs
-            
+        ET.SubElement(secDef, "facing").text = str(secFacing)
+        
         secDefPath = os.path.normpath("{}\\{}.qdsd".format(os.path.dirname(outputlayer),self.secName))
         tree = ET.ElementTree(secDef)
         tree.write(secDefPath)
@@ -892,7 +1036,16 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         QDrillerDialog.datastore.availSectionDict[self.secName]= secDefPath  #could this be set up with signals instead
         #relaod the sections in SectionView
         self.sectionGenerated.emit()
+        self.ledSecName.setText("")
+        self.secName = None
         
+    def printout(self):
+        print "deactivated signal triggered"
+        
+    def closeEvent(self, event):
+    #clean up rubber bands on close
+        self.canvas.scene().removeItem(self.envRB)
+        self.canvas.scene().removeItem(self.sectionRB)
         
 class SVMenuProvider(QgsLayerTreeViewMenuProvider):
     def __init__(self, view, iface):
@@ -903,8 +1056,6 @@ class SVMenuProvider(QgsLayerTreeViewMenuProvider):
     def createContextMenu(self):
         if not self.view.currentLayer():
             return None
-
-        print QDrillerDialog.sectionview.sectionCanvas
         
         m = QMenu()
         m.addAction("Properties", self.showProperties)
@@ -984,3 +1135,66 @@ class IdentifyTool(QgsMapToolIdentify):
                     featdata.setText(1, str(attr))
                     print "layer :{}, Feature:{}, Attrib:{}:{}".format(lyr, fet.id(), fname, attr)
     
+class SectionFromDrawTool(QgsMapToolEmitPoint):
+    calcDone = QtCore.pyqtSignal()
+    def __init__(self, canvas):
+        self.canvas = canvas
+        QgsMapToolEmitPoint.__init__(self, canvas)
+        self.rubberBand = QgsRubberBand(canvas, QGis.Line)
+        self.rubberBand.setColor(QtCore.Qt.red)
+        self.rubberBand.setWidth(1)
+        
+        self.origX = None
+        self.origY = None
+        self.azi = None
+        self.length = None
+        self.points = []
+        self.reset()
+        
+        
+    def reset(self):
+        self.startPoint = self.endPoint = None
+        self.isEmittingPoint = False
+        self.rubberBand.reset(QGis.Line)
+        
+    def canvasPressEvent(self, mouseEvent):
+        
+        self.startPoint = self.toMapCoordinates(mouseEvent.pos())
+        self.isEmittingPoint = True
+       
+        
+    def canvasReleaseEvent(self, mouseEvent):
+       
+        self.endPoint = self.toMapCoordinates(mouseEvent.pos())
+        self.isEmittingPoint = False
+        self.calculateExtents()
+       
+       
+    def canvasMoveEvent(self, e):
+        if not self.isEmittingPoint:
+            return
+
+        self.endPoint = self.toMapCoordinates(e.pos())
+        self.showLine(self.startPoint, self.endPoint)
+    
+    def showLine(self, start, end):
+        self.rubberBand.reset(QGis.Line)
+        self.rubberBand.addPoint(self.startPoint, False)
+        self.rubberBand.addPoint(self.endPoint, True)
+        self.rubberBand.show()
+        
+    def calculateExtents(self):
+       
+        self.origX = self.startPoint.x()
+        self.origY = self.startPoint.y()
+        self.azi = self.startPoint.azimuth(self.endPoint)
+        self.length = math.sqrt(self.startPoint.sqrDist(self.endPoint))
+        self.calcDone.emit()
+        
+            
+    def deactivate(self):
+        
+        self.canvas.scene().removeItem(self.rubberBand)
+        QgsMapTool.deactivate(self)
+        self.deactivated.emit()
+        

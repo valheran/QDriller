@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>680</width>
-    <height>445</height>
+    <height>459</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>410</y>
+     <y>370</y>
      <width>161</width>
      <height>32</height>
     </rect>
@@ -74,7 +74,7 @@
      </rect>
     </property>
    </widget>
-   <widget class="QPushButton" name="btnOriginX">
+   <widget class="QPushButton" name="btnOrigin">
     <property name="geometry">
      <rect>
       <x>130</x>
@@ -101,7 +101,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Select from Line</string>
+     <string>Use Selected Line</string>
     </property>
    </widget>
    <widget class="QLabel" name="label">
@@ -157,6 +157,9 @@
       <width>113</width>
       <height>20</height>
      </rect>
+    </property>
+    <property name="placeholderText">
+     <string>25</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_4">
@@ -327,7 +330,7 @@
    <property name="geometry">
     <rect>
      <x>560</x>
-     <y>290</y>
+     <y>270</y>
      <width>101</width>
      <height>141</height>
     </rect>
@@ -340,7 +343,7 @@
    <property name="geometry">
     <rect>
      <x>480</x>
-     <y>320</y>
+     <y>300</y>
      <width>75</width>
      <height>23</height>
     </rect>
@@ -353,7 +356,7 @@
    <property name="geometry">
     <rect>
      <x>570</x>
-     <y>250</y>
+     <y>230</y>
      <width>81</width>
      <height>31</height>
     </rect>
@@ -372,7 +375,7 @@
    <property name="geometry">
     <rect>
      <x>370</x>
-     <y>290</y>
+     <y>270</y>
      <width>101</width>
      <height>141</height>
     </rect>
@@ -385,7 +388,7 @@
    <property name="geometry">
     <rect>
      <x>480</x>
-     <y>360</y>
+     <y>340</y>
      <width>75</width>
      <height>23</height>
     </rect>
@@ -398,7 +401,7 @@
    <property name="geometry">
     <rect>
      <x>370</x>
-     <y>250</y>
+     <y>230</y>
      <width>91</width>
      <height>31</height>
     </rect>
@@ -416,7 +419,7 @@
   <widget class="QPushButton" name="btnDraw">
    <property name="geometry">
     <rect>
-     <x>160</x>
+     <x>190</x>
      <y>340</y>
      <width>151</width>
      <height>51</height>
@@ -443,6 +446,29 @@
      <normaloff>:/plugins/QDriller/icons/mActionFilter.png</normaloff>:/plugins/QDriller/icons/mActionFilter.png</iconset>
    </property>
   </widget>
+  <widget class="QWidget" name="verticalLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>420</y>
+     <width>661</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="lytMessage"/>
+  </widget>
+  <action name="actionDrawFromLine">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/icons/mouse-pointer.svg</normaloff>:/plugins/QDriller/icons/mouse-pointer.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Draw From Line</string>
+   </property>
+   <property name="toolTip">
+    <string>Draw section line on map</string>
+   </property>
+  </action>
  </widget>
  <tabstops>
   <tabstop>ledSecName</tabstop>
@@ -459,7 +485,7 @@
   <tabstop>btnDraw</tabstop>
   <tabstop>lstAvailDH</tabstop>
   <tabstop>lstAvailLogs</tabstop>
-  <tabstop>btnOriginX</tabstop>
+  <tabstop>btnOrigin</tabstop>
   <tabstop>btnFromLine</tabstop>
   <tabstop>lstSelLogs</tabstop>
   <tabstop>buttonBox</tabstop>
@@ -471,22 +497,6 @@
   <include location="resources.qrc"/>
  </resources>
  <connections>
-  <connection>
-   <sender>buttonBox</sender>
-   <signal>accepted()</signal>
-   <receiver>GenerateSection</receiver>
-   <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>157</x>
-     <y>274</y>
-    </hint>
-   </hints>
-  </connection>
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
