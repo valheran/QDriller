@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MainWindow</class>
- <widget class="QMainWindow" name="MainWindow">
+ <class>SectionView</class>
+ <widget class="QMainWindow" name="SectionView">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -219,7 +219,7 @@
    <property name="minimumSize">
     <size>
      <width>91</width>
-     <height>200</height>
+     <height>150</height>
     </size>
    </property>
    <property name="windowTitle">
@@ -272,13 +272,104 @@
     </layout>
    </widget>
   </widget>
+  <widget class="QDockWidget" name="dockWidget_2">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>147</width>
+     <height>110</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>524287</width>
+     <height>110</height>
+    </size>
+   </property>
+   <property name="floating">
+    <bool>false</bool>
+   </property>
+   <property name="windowTitle">
+    <string>Measure Tool</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_3">
+    <layout class="QGridLayout" name="gridLayout_2">
+     <property name="horizontalSpacing">
+      <number>10</number>
+     </property>
+     <property name="verticalSpacing">
+      <number>3</number>
+     </property>
+     <property name="margin">
+      <number>1</number>
+     </property>
+     <item row="2" column="1">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Total</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLabel" name="label_5">
+       <property name="text">
+        <string>Segment</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="ledSegLen"/>
+     </item>
+     <item row="0" column="0" rowspan="4">
+      <widget class="QListWidget" name="lstSeg">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Maximum" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>120</width>
+         <height>16777215</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="ledTotalLen"/>
+     </item>
+     <item row="4" column="1">
+      <spacer name="verticalSpacer">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </widget>
+  </widget>
   <action name="actionZoom_in">
    <property name="checkable">
     <bool>true</bool>
    </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/plugins/QDriller/icons/mActionZoomIn.svg</normaloff>:/plugins/QDriller/icons/mActionZoomIn.svg</iconset>
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionZoomIn.svg</normaloff>:/plugins/QDriller/Icons/icons/mActionZoomIn.svg</iconset>
    </property>
    <property name="text">
     <string>zoom_in</string>
@@ -293,7 +384,7 @@
    </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/plugins/QDriller/icons/mActionZoomOut.svg</normaloff>:/plugins/QDriller/icons/mActionZoomOut.svg</iconset>
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionZoomOut.svg</normaloff>:/plugins/QDriller/Icons/icons/mActionZoomOut.svg</iconset>
    </property>
    <property name="text">
     <string>zoom_out</string>
@@ -308,7 +399,7 @@
    </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/plugins/QDriller/icons/mActionTouch.svg</normaloff>:/plugins/QDriller/icons/mActionTouch.svg</iconset>
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionTouch.svg</normaloff>:/plugins/QDriller/Icons/icons/mActionTouch.svg</iconset>
    </property>
    <property name="text">
     <string>touch</string>
@@ -323,7 +414,7 @@
    </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/plugins/QDriller/icons/mActionPan.svg</normaloff>:/plugins/QDriller/icons/mActionPan.svg</iconset>
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionPan.svg</normaloff>:/plugins/QDriller/Icons/icons/mActionPan.svg</iconset>
    </property>
    <property name="text">
     <string>pan</string>
@@ -341,37 +432,42 @@
    </property>
   </action>
   <action name="actionIdentify">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/plugins/QDriller/icons/mActionIdentify.svg</normaloff>:/plugins/QDriller/icons/mActionIdentify.svg</iconset>
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionIdentify.svg</normaloff>:/plugins/QDriller/Icons/icons/mActionIdentify.svg</iconset>
    </property>
    <property name="text">
     <string>Identify</string>
    </property>
   </action>
   <action name="actionMeasureTool">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/plugins/QDriller/icons/mActionMeasure.png</normaloff>:/plugins/QDriller/icons/mActionMeasure.png</iconset>
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionMeasure.png</normaloff>:/plugins/QDriller/Icons/icons/mActionMeasure.png</iconset>
    </property>
    <property name="text">
     <string>MeasureTool</string>
    </property>
   </action>
   <action name="actionMeasureArea">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/plugins/QDriller/icons/mActionMeasureArea.png</normaloff>:/plugins/QDriller/icons/mActionMeasureArea.png</iconset>
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionMeasureArea.png</normaloff>:/plugins/QDriller/Icons/icons/mActionMeasureArea.png</iconset>
    </property>
    <property name="text">
     <string>Measure Area</string>
    </property>
   </action>
   <action name="actionSelectTool">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/plugins/QDriller/icons/mActionSelect.svg</normaloff>:/plugins/QDriller/icons/mActionSelect.svg</iconset>
-   </property>
    <property name="text">
     <string>Select</string>
    </property>
@@ -380,10 +476,6 @@
    </property>
   </action>
   <action name="actionPolygonSelect">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/plugins/QDriller/icons/mActionSelectPolygon.svg</normaloff>:/plugins/QDriller/icons/mActionSelectPolygon.svg</iconset>
-   </property>
    <property name="text">
     <string>Polygon Select</string>
    </property>

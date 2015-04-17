@@ -27,7 +27,7 @@ from PyQt4.QtGui import QAction, QIcon
 from qdriller_dialog import QDrillerDialog
 import os.path
 # Initialize Qt resources from file resources.py
-import resources
+import resources_rc
 
 class QDriller:
     """QGIS Plugin Implementation."""

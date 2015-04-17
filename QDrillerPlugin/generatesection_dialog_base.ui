@@ -88,7 +88,7 @@
     </property>
     <property name="icon">
      <iconset resource="resources.qrc">
-      <normaloff>:/plugins/QDriller/icons/mouse-pointer.svg</normaloff>:/plugins/QDriller/icons/mouse-pointer.svg</iconset>
+      <normaloff>:/plugins/QDriller/Icons/icons/mouse-pointer.svg</normaloff>:/plugins/QDriller/Icons/icons/mouse-pointer.svg</iconset>
     </property>
    </widget>
    <widget class="QPushButton" name="btnFromLine">
@@ -462,7 +462,7 @@
    </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/plugins/QDriller/icons/mActionFilter.png</normaloff>:/plugins/QDriller/icons/mActionFilter.png</iconset>
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionFilter.png</normaloff>:/plugins/QDriller/Icons/icons/mActionFilter.png</iconset>
    </property>
   </widget>
   <widget class="QWidget" name="verticalLayoutWidget">
@@ -477,10 +477,6 @@
    <layout class="QVBoxLayout" name="lytMessage"/>
   </widget>
   <action name="actionDrawFromLine">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/plugins/QDriller/icons/mouse-pointer.svg</normaloff>:/plugins/QDriller/icons/mouse-pointer.svg</iconset>
-   </property>
    <property name="text">
     <string>Draw From Line</string>
    </property>

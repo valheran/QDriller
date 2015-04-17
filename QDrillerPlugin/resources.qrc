@@ -1,8 +1,10 @@
 <RCC>
   <qresource prefix="/plugins/QDriller">
-    <file>icons/mouse-pointer.svg</file>
-    <file>icons/mActionFilter.png</file>
+    <file>icon.png</file>
+  </qresource>
+  <qresource prefix="/plugins/QDriller/Icons">
     <file>icons/mActionFileSave.svg</file>
+    <file>icons/mActionFilter.png</file>
     <file>icons/mActionIdentify.svg</file>
     <file>icons/mActionMeasure.png</file>
     <file>icons/mActionMeasureAngle.png</file>
@@ -26,6 +28,6 @@
     <file>icons/mActionZoomToArea.svg</file>
     <file>icons/mActionZoomToLayer.svg</file>
     <file>icons/mActionZoomToSelected.svg</file>
-    <file>icon.png</file>
+    <file>icons/mouse-pointer.svg</file>
   </qresource>
 </RCC>

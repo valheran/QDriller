@@ -41,6 +41,7 @@ from qgis.gui import *
 #import module with all the technical backend code
 import QDriller_Utilities as QDUtils
 sys.excepthook = sys.__excepthook__
+
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'qdriller_dialog_base.ui'))
 
@@ -481,6 +482,11 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.sectionBar.addAction(self.actionManageSections)
         self.featureTools = self.addToolBar("Feature Tools")
         self.featureTools.addAction(self.actionIdentify)
+        self.featureTools.addAction(self.actionMeasureTool)
+        self.featureTools.addAction(self.actionMeasureArea)
+        self.mapNavActions.addAction(self.actionIdentify)
+        self.mapNavActions.addAction(self.actionMeasureTool)
+        self.mapNavActions.addAction(self.actionMeasureArea)
 
         # connect the tool(s)
         self.actionZoom_in.triggered.connect(self.zoom_in)
@@ -490,6 +496,8 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.actionGenerateSection.triggered.connect(self.genSec)
         self.actionIdentify.triggered.connect(self.mapIdentify)
         self.actionManageSections.triggered.connect(self.manageSections)
+        self.actionMeasureTool.triggered.connect(self.measureLength)
+        self.actionMeasureArea.triggered.connect(self.measureArea)
         
         # create the map tool(s)
         self.tool_zoomin = QgsMapToolZoom(self.sectionCanvas, False)
@@ -497,9 +505,13 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.tool_pan = QgsMapToolPan(self.sectionCanvas)
         self.tool_touch = QgsMapToolTouch(self.sectionCanvas)
         self.tool_identify = IdentifyTool(self.sectionCanvas, self.identTree)
+        self.tool_measLength = MeasureLineTool(self.sectionCanvas, self.ledSegLen, self.ledTotalLen, self.lstSeg)
+        self.tool_measArea = MeasureAreaTool(self.sectionCanvas, self.ledTotalLen)      
         
+        #set default tool to touch
+        self.mapTouch()
         #maptool signals
-        
+        self.tool_measLength.dialogOpened.connect(self.activateWindow)
         self.refreshGui()
         #listen for signals
         self.layertreeRoot.visibilityChanged.connect(self.visibilitySetter)
@@ -533,6 +545,11 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.sectionCanvas.setMapTool(self.tool_zoomout)
         #print "zoom out action triggered"
         
+    def measureLength(self):
+        self.sectionCanvas.setMapTool(self.tool_measLength)
+    
+    def measureArea(self):
+        self.sectionCanvas.setMapTool(self.tool_measArea)
         
     def dispCoords(self, point):
         xCoord = int(point.x())
@@ -1137,9 +1154,7 @@ class SectionManager(QtGui.QDialog, MAN_FORM_CLASS):
             msg = " Section {} has been removed and project saved".format(lname)
             self.messageBar.pushMessage(msg)
             self.sectionDeleted.emit()
-            
-        
-           
+                       
 class SVMenuProvider(QgsLayerTreeViewMenuProvider):
     def __init__(self, view, iface):
         QgsLayerTreeViewMenuProvider.__init__(self)
@@ -1186,18 +1201,7 @@ class IdentifyTool(QgsMapToolIdentify):
         results = self.identify(mouseEvent.x(), mouseEvent.y(), self.LayerSelection)
         print "feature identify click"
         print "results", results[0].mLayer, results[0].mFields, results[0].mFeature
-        """fet = results[0].mFeature
-        fld = fet.fields().toList()
-        print fld
-            
-        
-        print "feature Info"
-        print fet.id()
-        for f in fld:
-            fname = f.name()
-            attr = fet.attribute(fname)
-            print "{}:{}".format(fname, attr)
-        """
+    
         #build a tree to display
         resDict = {}
         for result in results:
@@ -1244,29 +1248,23 @@ class SectionFromDrawTool(QgsMapToolEmitPoint):
         self.points = []
         self.reset()
         
-        
     def reset(self):
         self.startPoint = self.endPoint = None
         self.isEmittingPoint = False
         self.rubberBand.reset(QGis.Line)
         
     def canvasPressEvent(self, mouseEvent):
-        
         self.startPoint = self.toMapCoordinates(mouseEvent.pos())
         self.isEmittingPoint = True
-       
         
     def canvasReleaseEvent(self, mouseEvent):
-       
         self.endPoint = self.toMapCoordinates(mouseEvent.pos())
         self.isEmittingPoint = False
         self.calculateExtents()
        
-       
     def canvasMoveEvent(self, e):
         if not self.isEmittingPoint:
             return
-
         self.endPoint = self.toMapCoordinates(e.pos())
         self.showLine(self.startPoint, self.endPoint)
     
@@ -1277,17 +1275,204 @@ class SectionFromDrawTool(QgsMapToolEmitPoint):
         self.rubberBand.show()
         
     def calculateExtents(self):
-       
         self.origX = self.startPoint.x()
         self.origY = self.startPoint.y()
         self.azi = self.startPoint.azimuth(self.endPoint)
         self.length = math.sqrt(self.startPoint.sqrDist(self.endPoint))
         self.calcDone.emit()
         
-            
     def deactivate(self):
-        
         self.canvas.scene().removeItem(self.rubberBand)
         QgsMapTool.deactivate(self)
         self.deactivated.emit()
         
+class MeasureLineTool(QgsMapToolEmitPoint):
+    dialogOpened = QtCore.pyqtSignal()
+    def __init__(self, canvas, seg, total, list):
+        self.canvas = canvas
+        QgsMapToolEmitPoint.__init__(self, canvas)
+        self.rubberBand = QgsRubberBand(canvas, QGis.Line)
+        self.rubberBand.setColor(QtCore.Qt.red)
+        self.rubberBand.setWidth(1)
+        
+        self.origX = None
+        self.origY = None
+        self.length = None
+        self.totalLength = None
+        self.points = []
+        self.isEmittingPoint = False
+        self.seg = seg
+        self.total = total
+        self.list = list
+    
+      
+    def reset(self):
+        self.startPoint = self.endPoint = None
+        self.points = []
+        self.isEmittingPoint = False
+        self.rubberBand.reset(QGis.Line)
+        self.list.clear()
+        self.seg.clear()
+        self.total.clear()
+        
+    def canvasPressEvent(self, mouseEvent):
+        if mouseEvent.button() == QtCore.Qt.RightButton:
+            print "condition 1"
+           
+            self.endPoint = self.toMapCoordinates(mouseEvent.pos())
+            self.seg.setText(self.formatText(self.calculateSeg()))
+            self.list.addItem(self.formatText(self.calculateSeg()))
+            self.showLine()
+            self.isEmittingPoint = False
+            
+            
+        elif not self.isEmittingPoint:
+            print "condition 2"
+            self.reset()
+            self.startPoint = self.endPoint = self.toMapCoordinates(mouseEvent.pos())
+            self.seg.setText(self.formatText(self.calculateSeg()))
+            self.isEmittingPoint = True
+            self.points.append(self.startPoint)
+            
+        else:
+            print "condition 3"
+            self.list.addItem(self.formatText(self.calculateSeg()))
+            self.startPoint = self.toMapCoordinates(mouseEvent.pos())
+            self.seg.setText(self.formatText(self.calculateSeg()))
+            self.isEmittingPoint = True
+            self.points.append(self.startPoint)
+            self.showLine()
+            
+    def canvasMoveEvent(self, e):
+        if not self.isEmittingPoint:
+            return
+        self.endPoint = self.toMapCoordinates(e.pos())
+        self.seg.setText(self.formatText(self.calculateSeg()))
+        self.showLine()
+        self.total.setText(self.formatText(self.calculateTotal()))
+        
+    def showLine(self):
+        self.rubberBand.reset(QGis.Line)
+        for point in self.points:
+            self.rubberBand.addPoint(point, False)
+        self.rubberBand.addPoint(self.endPoint, True)
+        self.rubberBand.show()
+        
+    def calculateSeg(self):
+        #current leg
+        length = math.sqrt(self.startPoint.sqrDist(self.endPoint))
+        return length
+        
+    def calculateTotal(self):
+        #total length
+        geom = self.rubberBand.asGeometry()
+        totalLength = geom.length()
+        return totalLength
+      
+    def formatText(self, input):
+        if input <10:
+            text = "{}m".format(round(input, 1))
+        elif input <10000:
+            text = "{}m".format(round(input, 0))
+        elif input >10000:
+            text = "{}km".format(round((input / 1000), 3))
+            
+        return text
+        
+    def deactivate(self):
+        #self.canvas.scene().removeItem(self.rubberBand)
+        self.reset()
+        QgsMapTool.deactivate(self)
+        self.deactivated.emit()
+        
+class MeasureAreaTool(QgsMapToolEmitPoint):
+    dialogOpened = QtCore.pyqtSignal()
+    def __init__(self, canvas, total):
+        self.canvas = canvas
+        QgsMapToolEmitPoint.__init__(self, canvas)
+        self.rubberBand = QgsRubberBand(canvas, QGis.Polygon)
+        self.rubberBand.setBorderColor(QtCore.Qt.red)
+        
+        
+        self.origX = None
+        self.origY = None
+        self.area = None
+        self.points = []
+        self.isEmittingPoint = False
+        self.total = total
+    
+    def reset(self):
+        self.startPoint = self.endPoint = None
+        self.points = []
+        self.isEmittingPoint = False
+        self.rubberBand.reset(QGis.Polygon)
+        self.total.clear()
+        
+    def canvasPressEvent(self, mouseEvent):
+        if mouseEvent.button() == QtCore.Qt.RightButton:
+            print "condition 1"
+           
+            self.endPoint = self.toMapCoordinates(mouseEvent.pos())
+            self.total.setText(self.formatText(self.calculateTotal()))
+           
+            self.showLine()
+            self.isEmittingPoint = False
+            
+            
+        elif not self.isEmittingPoint:
+            print "condition 2"
+            self.reset()
+            self.startPoint = self.endPoint = self.toMapCoordinates(mouseEvent.pos())
+            #self.seg.setText(self.formatText(self.calculateSeg()))
+            self.isEmittingPoint = True
+            self.points.append(self.startPoint)
+            
+        else:
+            print "condition 3"
+            
+            self.startPoint = self.toMapCoordinates(mouseEvent.pos())
+            #self.seg.setText(self.formatText(self.calculateSeg()))
+            self.isEmittingPoint = True
+            self.points.append(self.startPoint)
+            self.showLine()
+            
+    def canvasMoveEvent(self, e):
+        if not self.isEmittingPoint:
+            return
+        self.endPoint = self.toMapCoordinates(e.pos())
+        self.showLine()
+        self.total.setText(self.formatText(self.calculateTotal()))
+        
+    def showLine(self):
+        self.rubberBand.reset(QGis.Polygon)
+        for point in self.points:
+            self.rubberBand.addPoint(point, False)
+        self.rubberBand.addPoint(self.endPoint, True)
+        self.rubberBand.show()
+           
+    def calculateTotal(self):
+        #total length
+        geom = self.rubberBand.asGeometry()
+        if not geom is None:
+            area = geom.area()
+            return area
+        else:
+            return 0
+      
+    def formatText(self, input):
+        if input <100:
+            text = "{}sqm".format(round(input, 1))
+        elif input <20000:
+            text = "{}sqm".format(round((input), 0))
+        elif input <500000:
+            text = "{}ha".format(round((input / 10000), 1))
+        elif input >500000:
+            text = "{}sqkm".format(round((input / 1000000), 3))
+            
+        return text
+        
+    def deactivate(self):
+        self.reset()
+        #self.canvas.scene().removeItem(self.rubberBand)
+        QgsMapTool.deactivate(self)
+        self.deactivated.emit()
