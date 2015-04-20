@@ -3,6 +3,7 @@
     <file>icon.png</file>
   </qresource>
   <qresource prefix="/plugins/QDriller/Icons">
+    <file>icons/transformed.png</file>
     <file>icons/mActionFileSave.svg</file>
     <file>icons/mActionFilter.png</file>
     <file>icons/mActionIdentify.svg</file>

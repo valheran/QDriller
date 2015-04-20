@@ -469,7 +469,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         #setup mouse coord tracking
         self.sectionCanvas.xyCoordinates.connect(self.dispCoords)
         
-        # create toolbar
+        # create toolbars
         self.navToolbar = self.addToolBar("Map Tools")
         self.mapNavActions = QActionGroup(self)
         self.mapNavActions.addAction(self.actionZoom_in)
@@ -487,6 +487,23 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.mapNavActions.addAction(self.actionIdentify)
         self.mapNavActions.addAction(self.actionMeasureTool)
         self.mapNavActions.addAction(self.actionMeasureArea)
+        #set up grid toolbars
+        self.gridToolbar = self.addToolBar("Grid Tools")
+        self.gridToolbar.addAction(self.actionGrid)
+        self.validator = QDoubleValidator(0, 100000, 0)
+        self.ledXspace = QLineEdit()
+        self.ledYspace = QLineEdit()
+        self.ledXspace.setFixedSize(40, 20)
+        self.ledXspace.setText("0")
+        self.ledYspace.setText("0")
+        self.ledYspace.setFixedSize(40, 20)
+        self.ledXspace.setValidator(self.validator)
+        self.ledYspace.setValidator(self.validator)
+        self.gridToolbar.addWidget(self.ledXspace)
+        self.gridToolbar.addWidget(self.ledYspace)
+        self.gridRB = QgsRubberBand(self.sectionCanvas)
+        self.gridRB.setColor(QtCore.Qt.black)
+        
 
         # connect the tool(s)
         self.actionZoom_in.triggered.connect(self.zoom_in)
@@ -498,6 +515,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.actionManageSections.triggered.connect(self.manageSections)
         self.actionMeasureTool.triggered.connect(self.measureLength)
         self.actionMeasureArea.triggered.connect(self.measureArea)
+        self.actionGrid.toggled.connect(self.addCanvasGrid)
         
         # create the map tool(s)
         self.tool_zoomin = QgsMapToolZoom(self.sectionCanvas, False)
@@ -516,6 +534,9 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         #listen for signals
         self.layertreeRoot.visibilityChanged.connect(self.visibilitySetter)
         self.legendView.currentLayerChanged.connect(self.getFacing)
+        self.sectionCanvas.extentsChanged.connect(self.refreshGrid)
+        self.ledXspace.editingFinished.connect(self.refreshGrid)
+        self.ledYspace.editingFinished.connect(self.refreshGrid)
        # self.legendView.currentLayerChanged.connect(self.model.refreshLayerLegend)
         #load up any pre-existing sections
         
@@ -627,6 +648,28 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
             self.ledFacing.setText(str(secFacing))
         except AttributeError:
             self.ledFacing.setText("N/A")
+            
+    def addCanvasGrid(self, plot):
+    
+        if plot:
+            self.gridRB.reset(QGis.Line)
+            CanvasGrid(self.sectionCanvas, self.ledXspace.text(), self.ledYspace.text(), self.gridRB)
+            self.gridRB.show()
+        elif not plot:
+            self.gridRB.reset(QGis.Line)
+            
+    def refreshGrid(self):
+        if self.actionGrid.isChecked():
+            try:
+                float(self.ledYspace.text())
+            except ValueError:
+                self.ledYspace.setText("0")
+            try:
+                float(self.ledXspace.text())
+            except ValueError:
+                self.ledXspace.setText("0")
+                
+            self.addCanvasGrid(True)
             
     def mapInformation(self):
         print "canvas extent", self.sectionCanvas.extent()
@@ -1476,3 +1519,46 @@ class MeasureAreaTool(QgsMapToolEmitPoint):
         #self.canvas.scene().removeItem(self.rubberBand)
         QgsMapTool.deactivate(self)
         self.deactivated.emit()
+        
+class CanvasGrid:
+
+    def __init__(self, canvas, xspace, yspace, rubberband):
+        #get canvas extents
+        extent = canvas.extent()
+        xmin = extent.xMinimum()
+        xmax = extent.xMaximum()
+        ymin = extent.yMinimum()
+        ymax = extent.yMaximum()
+        
+        #create memory layer to hold grid
+        glayer = QgsVectorLayer("LineString?crs=epsg:4328", "grid", "memory")
+        #gpr = glayer.dataProvider
+        rubberband.reset(QGis.Line)
+        #generate gridlines
+        if float(xspace) > 0:
+            xCo = self.rounder(xmin, float(xspace))
+            #gridlist = []
+            
+            while xCo < xmax:
+                geom = QgsGeometry.fromPolyline([QgsPoint(xCo, ymin), QgsPoint(xCo,ymax)])
+                #feat = QgsFeature()
+                #feat.setGeometry(geom)
+                #gridlist.append(feat)
+                rubberband.addGeometry(geom, glayer)
+                xCo += float(xspace)
+        if float(yspace) > 0:
+            yCo = self.rounder(ymin, float(yspace))
+            
+            while yCo < ymax:
+                geom = QgsGeometry.fromPolyline([QgsPoint(xmin, yCo), QgsPoint(xmax,yCo)])
+                #feat = QgsFeature()
+                #feat.setGeometry(geom)
+                #gridlist.append(feat)
+                rubberband.addGeometry(geom, glayer)
+                yCo += float(yspace)
+            
+        #gpr.addFeatures(gridlist)
+        
+            
+    def rounder(self, number, roundto):
+        return (round(number / roundto) * roundto)

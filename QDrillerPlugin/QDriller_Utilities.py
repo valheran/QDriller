@@ -301,7 +301,7 @@ class ProfileFromRaster:
         writer.addFeature(feat)
         del writer
        
-    
+
 
 def planGeomBuilder(coordlist):
     #takes a dictionary of lists (XYZ) coords. and creates a list of XY coord pairs(ie for plan view.

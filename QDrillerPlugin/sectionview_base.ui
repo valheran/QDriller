@@ -491,6 +491,21 @@
     <string>Manage available sections</string>
    </property>
   </action>
+  <action name="actionGrid">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/Icons/icons/transformed.png</normaloff>:/plugins/QDriller/Icons/icons/transformed.png</iconset>
+   </property>
+   <property name="text">
+    <string>Grid</string>
+   </property>
+   <property name="toolTip">
+    <string>add grid to canvas</string>
+   </property>
+  </action>
  </widget>
  <resources>
   <include location="resources.qrc"/>
