@@ -25,6 +25,7 @@ import os
 import math
 import sys
 import shutil
+import csv
 
 try:
     import xml.etree.cElementTree as ET
@@ -79,6 +80,7 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
         self.btnSurvbrowse.clicked.connect(lambda:self.showFileBrowser("surveyfile"))
         self.btnCRS.clicked.connect(self.fetchCRS)
         self.btnAddtoCanvas.clicked.connect(self.addtoCanvas)
+        self.btnValidate.clicked.connect(self.validateData)
         
         
         #Plan View Objects Buttons
@@ -106,6 +108,11 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
         QDrillerDialog.datastore.projectLoaded.connect(self.onProjectLoad)
         
     #functions for running the gui
+    def validateData(self):
+    
+        self.valDlg = ValidateFiles(QDrillerDialog.datastore.collarfile, QDrillerDialog.datastore.surveyfile, QDrillerDialog.datastore.logfiles)
+        self.valDlg.validationPassed.connect(self.btnCreatePrj.setEnabled)
+        self.valDlg.show()
         
     def showFileBrowser(self,target):
     #call up a file browser with filter for extension. 
@@ -484,6 +491,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.featureTools.addAction(self.actionIdentify)
         self.featureTools.addAction(self.actionMeasureTool)
         self.featureTools.addAction(self.actionMeasureArea)
+        self.featureTools.addAction(self.actionSaveAsImage)
         self.mapNavActions.addAction(self.actionIdentify)
         self.mapNavActions.addAction(self.actionMeasureTool)
         self.mapNavActions.addAction(self.actionMeasureArea)
@@ -516,6 +524,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.actionMeasureTool.triggered.connect(self.measureLength)
         self.actionMeasureArea.triggered.connect(self.measureArea)
         self.actionGrid.toggled.connect(self.addCanvasGrid)
+        self.actionSaveAsImage.triggered.connect(self.saveImage)
         
         # create the map tool(s)
         self.tool_zoomin = QgsMapToolZoom(self.sectionCanvas, False)
@@ -671,6 +680,10 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
                 
             self.addCanvasGrid(True)
             
+    def saveImage(self):
+        ExportImage(self.sectionCanvas)
+
+
     def mapInformation(self):
         print "canvas extent", self.sectionCanvas.extent()
         self.sectionCanvas.refresh()
@@ -693,7 +706,6 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         
 GEN_FORM_CLASS, _ = uic.loadUiType(os.path.join(
 os.path.dirname(__file__), 'generatesection_dialog_base.ui'))
-
 
 class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
 
@@ -1143,7 +1155,6 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
 MAN_FORM_CLASS, _ = uic.loadUiType(os.path.join(
 os.path.dirname(__file__), 'managesections_dialog_base.ui'))
 
-
 class SectionManager(QtGui.QDialog, MAN_FORM_CLASS):
     sectionDeleted = QtCore.pyqtSignal()
     def __init__(self, parent=None):
@@ -1562,3 +1573,369 @@ class CanvasGrid:
             
     def rounder(self, number, roundto):
         return (round(number / roundto) * roundto)
+        
+class ExportImage:
+#this is not working very well yet
+    def __init__(self, canvas):
+        #pull layers
+        layers = canvas.layers()
+        layerlist = []
+        for lyr in layers:
+            layerlist.append(lyr.id())
+
+            #create image
+        #mapsettings = canvas.mapSettings()
+        #mapsettings.setOutputDpi(300)
+        #size = mapsettings.outputSize()
+        img = QImage(QtCore.QSize(800, 600), QImage.Format_ARGB32_Premultiplied)
+        color = QColor(255, 255, 255)
+        img.fill(color.rgb())
+        #create painter
+        p = QPainter()
+        p.begin(img)
+        p.setRenderHint(QPainter.Antialiasing)
+
+        #create renderer
+        render = canvas.mapRenderer()
+        
+        #set layers and extent
+        #render.setLayerSet(layerlist)
+        #render.setExtent(canvas.extent())
+        
+        #set output size
+        render.setOutputSize(img.size(), 300)
+        
+        #render 
+        render.render(p)
+        
+        p.end()
+        #save image
+        img.save(r"E:\GitHub\Test\render.png","png")
+
+VAL_FORM_CLASS, _ = uic.loadUiType(os.path.join(
+os.path.dirname(__file__), 'validation log.ui'))        
+class ValidateFiles(QDialog,VAL_FORM_CLASS):
+    validationPassed = QtCore.pyqtSignal(bool)
+    def __init__(self, collarfile, surveyfile, logfiles, parent=None):
+        """Constructor."""
+        super(ValidateFiles, self).__init__(parent)
+        # Set up the user interface from Designer.
+        # After setupUI you can access any designer object by doing
+        # self.<objectname>, and you can use autoconnect slots - see
+        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
+        # #widgets-and-dialogs-with-auto-connect
+        self.setupUi(self)
+        
+        self.collarfile = collarfile
+        self.surveyfile = surveyfile
+        self.logfiles = logfiles
+        self.eohDict = {}
+        self.canProceed = True
+        self.warningsExist = False
+        self.btnValidate.clicked.connect(self.runValidation)
+        
+    def runValidation(self):
+        #run compulsory checks
+        self.checkCollar()
+        self.progressBar.setValue(25)
+        self.checkSurvey()
+        self.progressBar.setValue(50)#run optional checks
+        if self.chkDev.isChecked():
+            if self.canProceed:
+                self.printToLog("\n Checking survey deviations")
+                self.checkDeviation()
+            else:
+                self.printToLog("\n Input Data needs to be fixed before deviations are checked")
+        if self.chkSpread.isChecked():
+            if self.canProceed:
+                self.printToLog("\n Checking Collar spread")
+                self.checkLocationSpread()
+            else:
+                self.printToLog("\n Input Data needs to be fixed before collar spread is checked")
+        #run logdata checks
+        self.progressBar.setValue(75)
+        for log in self.logfiles:
+            self.checkLogfiles(log)
+        
+        
+        self.progressBar.setValue(100)
+        #post finishing messages and allow to continue if passed
+        if self.canProceed:
+            if self.warningsExist:
+                self.printToLog(" \n Error Checking Complete. Please check warnings above before proceeding")
+                self.validationPassed.emit(True)
+            else:
+                self.printToLog(" \n Error Checking Complete, ready to create project")
+                self.validationPassed.emit(True)
+        else:
+            self.printToLog(" \n Error Checking Complete. Critical Errors were found. Please rectify the data and run validation again before creating project")
+                            
+    def printToLog(self, mesg):
+        self.logOutput.appendPlainText(mesg)
+        
+    def checkCollar(self):
+        allowableHID = ["HoleID", "holeid","HoleId", "Hole_Id","Hole_ID", "hole_id", "Hole", "hole"]
+        allowableX = ["Easting", "X", "x"]
+        allowableY = ["Northing", "Y", "y"]
+        allowableZ = ["RL", "Elevation", "elevation", "Z", "z"]
+        allowableEOH = ["EOH", "eoh", "FinalDepth", "Final_Depth", "Depth"]
+        
+        self.printToLog("\n Checking Collars")
+        with open(self.collarfile, 'r') as col:
+            #next(col)
+            readercol=csv.reader(col)
+            headings = readercol.next()
+            if len(headings) > 5:
+                self.printToLog("Too many columns, only HoleID, Easting, Northing, Elevation and EOH required")
+                self.canProceed = False
+            if allowableHID.count(headings[0]) == 0:
+                self.printToLog("Hole ID not recognized, must be first column")
+                self.canProceed = False
+            if allowableX.count(headings[1]) == 0:
+                self.printToLog("Easting not recognized, must be second column")
+                self.canProceed = False
+            if allowableY.count(headings[2]) == 0:
+                self.printToLog("Northing not recognized, must be third column")
+                self.canProceed = False
+            if allowableZ.count(headings[3]) == 0:
+                self.printToLog("Elevation not recognized, must be fourth column")
+                self.canProceed = False
+            if allowableEOH.count(headings[4]) == 0:
+                self.printToLog("EOH not recognized, must be fifth column")
+                self.canProceed = False
+            i = 2
+            try:
+                for holeid,x,y,z,EOH in readercol:
+                
+                    if len(holeid) == 0:
+                        self.printToLog("HoleID missing, line {}".format(i))
+                       
+                    try:
+                        test = float(x)
+                        test = float(y)
+                        test = float(z)
+                        test = float(EOH)
+                    except ValueError:
+                        self.printToLog("non numeric or missing values detected in Easting, Northing, Elevation or EOH, line {}".format(i))
+                        self.canProceed = False
+                    i += 1
+                    self.eohDict[holeid]= EOH
+            except ValueError:
+                self.printToLog("data or column missing at line {}".format(i))
+                
+    def checkSurvey(self):
+        allowableHID = ["HoleID", "holeid","HoleId", "Hole_Id","Hole_ID", "hole_id", "Hole", "hole"]
+        allowableDepth = ["Depth", "depth", "from"]
+        allowableDip = ["Dip", "dip", "inclination"]
+        allowableAzi = ["Azimuth", "azimuth", "Azi", "azi", "Bearing","bearing"]
+        holelist = []
+        self.printToLog("\n Checking Surveys")
+        
+        with open(self.surveyfile, 'r') as sur:
+            #next(col)
+            readersur=csv.reader(sur)
+            headings = readersur.next()
+            if len(headings) > 4:
+                self.printToLog("Too many columns, only HoleID, Depth, Dip and Azimuth required")
+                self.canProceed = False
+            if allowableHID.count(headings[0]) == 0:
+                self.printToLog("Hole ID not recognized, must be first column")
+                self.canProceed = False
+            if allowableDepth.count(headings[1]) == 0:
+                self.printToLog("Depth not recognized, must be second column")
+                self.canProceed = False
+            if allowableDip.count(headings[2]) == 0:
+                self.printToLog("Dip not recognized, must be third column")
+                self.canProceed = False
+            if allowableAzi.count(headings[3]) == 0:
+                self.printToLog("Azimuth not recognized, must be fourth column")
+                self.canProceed = False
+                        
+            i = 2
+            try:
+                for holeid,depth, dip, azi in readersur:
+                                   
+                    if len(holeid) == 0:
+                        self.printToLog("HoleID missing, line {}".format(i))
+                        self.canProceed = False
+                    try:
+                        test = float(depth)
+                        test = float(dip)
+                        test = float(azi)
+                        
+                    except ValueError:
+                        self.printToLog("non numeric or missing values detected in Easting, Northing, Elevation or EOH, line {}".format(i))
+                        self.canProceed = False
+                    try:
+                        if float(depth) > float(self.eohDict[holeid]):
+                            self.printToLog("survey ({}) past EOH ({}) for {}, line {}".format(depth, self.eohDict[holeid], holeid, i))
+                            self.canProceed = False
+                    except KeyError:
+                        self.printToLog("Hole ID does not exist in collar file '{}', line {}".format(holeid, i))
+                        self.canProceed = False
+                    holelist.append(holeid)
+                    i += 1
+            except ValueError:
+                self.printToLog("data or column missing at line {}".format(i))
+                
+            for key in self.eohDict:
+                if holelist.count(key) == 0:
+                    self.printToLog("Hole {} has no survey data".format(key))
+                    self.canProceed = False
+                    
+    def checkLogfiles(self, log):
+        self.printToLog("\n Checking {}".format(log))
+        csvfile = open(log, 'rb')
+        reader = csv.reader(csvfile)
+        header = reader.next()
+        # Get sample
+        sample = reader.next()
+        fieldsample = dict(zip(header, sample))
+        a = False
+        if not fieldsample.has_key("HoleID"):
+            a = True
+            self.printToLog("log file {} must have column named HoleID".format(log))
+            self.canProceed = False
+        if not fieldsample.has_key("From"):
+            a = True
+            self.printToLog("log file {} must have column named From".format(log))
+            self.canProceed = False
+        if not fieldsample.has_key("To"):
+            a = True
+            self.printToLog("log file {} must have column named To".format(log))
+            self.canProceed = False
+        if a:
+            self.printToLog("file format errors in {} must be fixed before continuing".format(log))
+            return
+        
+        logdata = QgsVectorLayer(log, 'log', 'ogr')
+        
+        #create iterator
+        logiter = logdata.getFeatures()
+       
+        #iterate over all log entries and create the trace geometries into the new shapefile
+        i=2
+        holelist = []
+        intervalDict = {}
+        for logfeature in logiter:
+            #initialise variables
+            holeid = logfeature.attributes()[logfeature.fieldNameIndex('HoleID')]
+            
+            if not self.eohDict.has_key(holeid):
+                self.printToLog("Data for hole with no collar {} detected line {}".format (holeid, i))
+                self.canProceed = False
+                i += 1
+                continue
+            
+            try:
+                lsampfrom =float( logfeature.attributes()[logfeature.fieldNameIndex('From')])
+                lsampto = float(logfeature.attributes()[logfeature.fieldNameIndex('To')])
+                if lsampto > float(self.eohDict[holeid]):
+                    self.printToLog("log interval {} to {} exceeds EOH, {}, line {}".format(lsampfrom, lsampto, holeid, i))
+                    self.canProceed = False
+            except (ValueError, TypeError):
+                self.printToLog("non numeric From - To detected in line {}".format(i))
+                self.canProceed = False
+            holelist.append(holeid)
+            
+            if intervalDict.has_key(holeid):
+                intervalDict[holeid].append([lsampfrom, lsampto])
+            else:
+                intervalDict[holeid] = [[lsampfrom, lsampto]]
+                
+            i += 1
+            
+        for key in self.eohDict:
+            if holelist.count(key) == 0:
+                self.printToLog("Warning: Hole {} has no entries in {}".format(key, log))
+                self.warningsExist = True
+        try:
+            #print intervalDict
+            for h in intervalDict:
+            
+                intervalList = intervalDict[h]
+                for k in intervalList:
+                    top = k[0]
+                    bottom = k[1]
+                    for j in intervalList:
+                        #print "hole {}, checking interval {} against {}. j[0] = {}".format(h, k, j, j[0])
+                        if (j[0] > top) and (j[0] < bottom):
+                            self.printToLog("Warning: overlapping intervals detected in hole {} ({} to{}) in {}".format(h, top, bottom, log))
+                            self.warningsExist = True
+        except (ValueError, TypeError):
+            self.printToLog("Overlapping interval check failed due to bad data. See previous errors")
+            
+    def checkDeviation(self):
+        
+        
+        with open(self.collarfile, 'r') as col:
+            next(col)
+            readercol=csv.reader(col)
+            
+            for holeid,x,y,z,EOH in readercol:
+                #print "holeid", holeid
+                collars=[x,y,z,EOH]
+                a = holeid
+                i=0
+                        
+                with open(self.surveyfile, 'r') as sur:
+                    next(sur)
+                    readersur = csv.reader(sur)
+                    surveys={}
+                    for hole, depth,dip,azi in readersur:
+                        if hole ==a:
+                            surv = [float(depth), float(dip), float(azi)]
+                            surveys[i]=surv
+                            i=i+1
+                            
+                j=0
+                while j+1 < len(surveys): 
+                    depthb = surveys[(j+1)][0]
+                    deptht = surveys[j][0]
+                    interval = depthb - deptht
+                    delDip = surveys[(j+1)][1] - surveys[j][1]
+                    if surveys[(j+1)][0] >330:
+                        azi1 = surveys[(j+1)][0] -360
+                    else:
+                        azi1 = surveys[j][0]
+                    if surveys[(j+1)][0] >330:
+                        azi2 = surveys[j][0] -360
+                    else:
+                        azi2 = surveys[j][0]
+                    delazi = azi2 - azi1
+                    devrate = abs((delDip/interval) * 30)
+                    swingrate = abs((delazi/interval) * 30)
+                    if devrate > 5:
+                        self.printToLog("Warning: Excessive dip change of {} per 30m between {} and {} in {}".format(devrate, deptht, depthb, holeid))
+                        
+                        self.warningsExist =True
+                    if swingrate > 10:
+                        self.printToLog("Warning: Excessive dip change of {} per 30m between {} and {} in {}".format(swingrate, deptht, depthb, holeid))
+                        self.warningsExist = True
+                    j +=1
+                    
+    def checkLocationSpread(self):
+        
+        with open(self.collarfile, 'r') as col:
+            next(col)
+            readercol=csv.reader(col)
+            xlist = []
+            ylist = []
+            zlist = []
+            
+            for holeid,x,y,z,EOH in readercol:
+                #print "holeid", holeid
+                xlist.append(float(x))
+                ylist.append(float(y))
+                zlist.append(float(z))
+            
+            xrange = max(xlist) - min(xlist)
+            yrange = max(ylist) - min(ylist)
+            zrange = max(zlist) - min(zlist)
+            
+            if (xrange >10000) or (yrange > 10000):
+                self.printToLog("Warning: A large collar spread of greater than 10km was detected")
+                self.warningsExist = True
+            if zrange > 500:
+                self.printToLog("Warning: A  vertical spread of more than 500m between collars was detected")
+                self.warningsExist = True

@@ -211,7 +211,7 @@ class LogDrawer:
         #a function to take an attribute table with drillhole log data and create traces for each entry
 
         #load the log file 
-        logdata = QgsVectorLayer(self.logfile, 'magsus', 'ogr')
+        logdata = QgsVectorLayer(self.logfile, 'log', 'ogr')
         tprov=self.tlayer.dataProvider()
         logprov=logdata.dataProvider()  #probably dont need this  DELETE?
         #create iterator
@@ -264,7 +264,8 @@ class LogDrawer:
             loglayer =QgsVectorLayer(self.outlogfile, name, 'ogr')
             QgsMapLayerRegistry.instance().addMapLayer(loglayer)
 
-            
+
+       
 class ProfileFromRaster:
     def __init__(self, originX, originY, azi, sectionlength, rasterlayer, outfile):
         

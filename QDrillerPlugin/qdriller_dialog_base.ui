@@ -514,6 +514,9 @@
     </property>
    </widget>
    <widget class="QPushButton" name="btnCreatePrj">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>360</x>
@@ -602,6 +605,19 @@
     </property>
     <property name="placeholderText">
      <string>Select CRS</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btnValidate">
+    <property name="geometry">
+     <rect>
+      <x>320</x>
+      <y>230</y>
+      <width>75</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Validate Data</string>
     </property>
    </widget>
   </widget>

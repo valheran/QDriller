@@ -506,6 +506,18 @@
     <string>add grid to canvas</string>
    </property>
   </action>
+  <action name="actionSaveAsImage">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionSaveMapAsImage.png</normaloff>:/plugins/QDriller/Icons/icons/mActionSaveMapAsImage.png</iconset>
+   </property>
+   <property name="text">
+    <string>save as Image</string>
+   </property>
+   <property name="toolTip">
+    <string>save canvas as image</string>
+   </property>
+  </action>
  </widget>
  <resources>
   <include location="resources.qrc"/>
