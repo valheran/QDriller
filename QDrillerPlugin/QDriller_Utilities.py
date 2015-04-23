@@ -37,7 +37,7 @@ class DrillholeCoordBuilder:
     #creates a series of x,y,z coordinates from an intial collar location and a series of downhole surveys
     #the resultiing ordered dictionary uses downhole length as its key, and a list of [X,Y,Z] coords as the item
     
-    def __init__(self, collar, survey):
+    def __init__(self, collar, survey, isNeg):
         self.Xo = float(collar[0])
         self.Yo = float(collar[1])
         self.Zo = float(collar[2])
@@ -54,8 +54,10 @@ class DrillholeCoordBuilder:
             while k < (skeys-1):
                 slist = survey[k]
                 sampfrom = float(slist[0])
-                
-                dip = float(slist[1])
+                if isNeg:
+                    dip = float(slist[1]) * -1
+                else:
+                    dip = float(slist[1])
                 azi = float(slist[2])
                 try:
                     slist2 = survey[k+1]
@@ -72,7 +74,10 @@ class DrillholeCoordBuilder:
         else:
             slist = survey[0]
             sampfrom = float(slist[0])
-            dip = float(slist[1])
+            if isNeg:
+                dip = float(slist[1]) * -1
+            else:
+                dip = float(slist[1])
             azi = float(slist[2])
             sampto = float(collar[3]) #make the last sampto the EOH depth
             
@@ -430,14 +435,14 @@ def densifySurvey(data):
     densurvey[newkey]=d[entry]
     return densurvey  
 	
-def calcXYZ(drillholes):
+def calcXYZ(drillholes, isNeg):
 #calculate XYZ coords for all drillholes
     drillholeXYZ={}
     for holes in drillholes:
         holedata = drillholes[holes]
         collar = holedata[0]
         survey =holedata[1]
-        trace = DrillholeCoordBuilder(collar, survey)
+        trace = DrillholeCoordBuilder(collar, survey, isNeg)
         drillholeXYZ[holes] = trace.results
         #print "drillhole %s built" % (holes)
     return drillholeXYZ

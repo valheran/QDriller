@@ -100,6 +100,7 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
         self.chkTrace2can.toggled.connect(lambda: self.setVariable("trace2can", self.chkTrace2can.isChecked()))
         self.chkColl2can.toggled.connect(lambda: self.setVariable("coll2can", self.chkColl2can.isChecked()))
         self.chkLog2can.toggled.connect(lambda: self.setVariable("log2can", self.chkLog2can.isChecked()))
+        self.chkIsNegDip.toggled.connect(lambda: self.setVariable("isNegDip", self.chkIsNegDip.isChecked()))
         #self.chkEohlab.toggled.connect()
         #self.chkDHTick.toggled.connect()
         
@@ -157,6 +158,8 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
             QDrillerDialog.datastore.coll2can = value
         elif target == "logtarget":
             QDrillerDialog.datastore.logtarget = value
+        elif target == "isNegDip":
+            QDrillerDialog.datastore.isNegDip = value
             
         
     def addtoLoglist(self):
@@ -253,6 +256,7 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
         self.ledSur.setText(QDrillerDialog.datastore.surveyfile)
         self.ledProjName.setText(QDrillerDialog.datastore.projectname)
         self.ledCRS.setText(QDrillerDialog.datastore.projectCRS.authid())
+        self.chkIsNegDip.setChecked(QDrillerDialog.datastore.isNegDip)
         self.addtoLayerList()
         self.lstDHlogs.clear()
         for keys in QDrillerDialog.datastore.logfiles:
@@ -318,6 +322,7 @@ class DataStore(QtCore.QObject):
         self.trace2can = True
         self.log2can = True
         self.coll2can = True
+        self.isNegDip = True
         
         #variables for keeping track of created layers
         self.planLogLayers = []
@@ -335,7 +340,12 @@ class DataStore(QtCore.QObject):
         self.projectname = root.find("prjname").text
         self.collarfile = root.find("collar").text
         self.surveyfile = root.find("survey").text
-        
+        isNegString = root.find("isNegDip").text
+        if isNegString == "False":
+            self.isNegDip = False
+        else:
+            self.isNegDip = True
+          
         selCRS = QgsCoordinateReferenceSystem()
         #turn blank CRS into desired CRS using the authority identifier
         crsid =root.find("prjcrs").text
@@ -372,6 +382,7 @@ class DataStore(QtCore.QObject):
         ET.SubElement(root, "survey").text = self.surveyfile
         ET.SubElement(root, "prjname").text = self.projectname
         ET.SubElement(root, "prjcrs").text = self.projectCRS.authid()
+        ET.SubElement(root, "isNegDip").text = str(self.isNegDip)
         
         for logs in self.logfiles:
             ET.SubElement(root, "log").text = logs
@@ -389,7 +400,7 @@ class DataStore(QtCore.QObject):
     def calcDrillholes(self):
     #read in from file and create the drillhole arrays for use
         self.drillholes = QDUtils.readFromFile(self.collarfile, self.surveyfile)
-        self.drillholesXYZ = QDUtils.calcXYZ(self.drillholes)
+        self.drillholesXYZ = QDUtils.calcXYZ(self.drillholes, self.isNegDip)
         
     def createPlanTrace(self):
     #a function to create drill traces in plan view

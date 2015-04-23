@@ -276,6 +276,22 @@
       <bool>true</bool>
      </property>
     </widget>
+    <widget class="QCheckBox" name="chkIsNegDip">
+     <property name="geometry">
+      <rect>
+       <x>100</x>
+       <y>180</y>
+       <width>111</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Dips are Negative</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
    </widget>
    <widget class="QGroupBox" name="gpbxPlanview">
     <property name="enabled">
