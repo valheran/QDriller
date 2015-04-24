@@ -111,7 +111,11 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
     #functions for running the gui
     def validateData(self):
     
-        self.valDlg = ValidateFiles(QDrillerDialog.datastore.collarfile, QDrillerDialog.datastore.surveyfile, QDrillerDialog.datastore.logfiles)
+        self.valDlg = ValidateFiles(QDrillerDialog.datastore.collarfile,
+                                    QDrillerDialog.datastore.surveyfile, 
+                                    QDrillerDialog.datastore.logfiles, 
+                                    QDrillerDialog.datastore.isNegDip)
+                                    
         self.valDlg.validationPassed.connect(self.btnCreatePrj.setEnabled)
         self.valDlg.show()
         
@@ -1625,9 +1629,10 @@ class ExportImage:
 
 VAL_FORM_CLASS, _ = uic.loadUiType(os.path.join(
 os.path.dirname(__file__), 'validation log.ui'))        
+
 class ValidateFiles(QDialog,VAL_FORM_CLASS):
     validationPassed = QtCore.pyqtSignal(bool)
-    def __init__(self, collarfile, surveyfile, logfiles, parent=None):
+    def __init__(self, collarfile, surveyfile, logfiles, dipsignNeg, parent=None):
         """Constructor."""
         super(ValidateFiles, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -1640,6 +1645,7 @@ class ValidateFiles(QDialog,VAL_FORM_CLASS):
         self.collarfile = collarfile
         self.surveyfile = surveyfile
         self.logfiles = logfiles
+        self.dipsignNeg = dipsignNeg
         self.eohDict = {}
         self.canProceed = True
         self.warningsExist = False
@@ -1686,8 +1692,8 @@ class ValidateFiles(QDialog,VAL_FORM_CLASS):
         
     def checkCollar(self):
         allowableHID = ["HoleID", "holeid","HoleId", "Hole_Id","Hole_ID", "hole_id", "Hole", "hole"]
-        allowableX = ["Easting", "X", "x"]
-        allowableY = ["Northing", "Y", "y"]
+        allowableX = ["Easting","East", "X", "x", "EASTING", "EAST"]
+        allowableY = ["Northing", "Y", "y", "NORTHING", "NORTH", "North"]
         allowableZ = ["RL", "Elevation", "elevation", "Z", "z"]
         allowableEOH = ["EOH", "eoh", "FinalDepth", "Final_Depth", "Depth"]
         
@@ -1735,10 +1741,10 @@ class ValidateFiles(QDialog,VAL_FORM_CLASS):
                 self.printToLog("data or column missing at line {}".format(i))
                 
     def checkSurvey(self):
-        allowableHID = ["HoleID", "holeid","HoleId", "Hole_Id","Hole_ID", "hole_id", "Hole", "hole"]
-        allowableDepth = ["Depth", "depth", "from"]
-        allowableDip = ["Dip", "dip", "inclination"]
-        allowableAzi = ["Azimuth", "azimuth", "Azi", "azi", "Bearing","bearing"]
+        allowableHID = ["HoleID", "holeid","HoleId", "Hole_Id","Hole_ID", "hole_id", "Hole", "hole", "HOLE", "HOLEID"]
+        allowableDepth = ["Depth", "depth", "from", "DEPTH"]
+        allowableDip = ["Dip", "dip", "inclination", "DIP"]
+        allowableAzi = ["Azimuth", "azimuth", "Azi", "azi", "Bearing","bearing", "AZI", "AZIMUTH"]
         holelist = []
         self.printToLog("\n Checking Surveys")
         
@@ -1761,7 +1767,7 @@ class ValidateFiles(QDialog,VAL_FORM_CLASS):
             if allowableAzi.count(headings[3]) == 0:
                 self.printToLog("Azimuth not recognized, must be fourth column")
                 self.canProceed = False
-                        
+            checkDict = {}            
             i = 2
             try:
                 for holeid,depth, dip, azi in readersur:
@@ -1771,9 +1777,18 @@ class ValidateFiles(QDialog,VAL_FORM_CLASS):
                         self.canProceed = False
                     try:
                         test = float(depth)
-                        test = float(dip)
                         test = float(azi)
-                        
+                        test = float(dip)
+                        #see if the sign of the dip matches that declared by user
+                        if self.dipsignNeg:
+                            if test > 0:
+                                self.printToLog("Warning: Positive Dip sign detected in {} at {}".format(holeid, depth))
+                                self.warningsExist = True
+                        else:
+                            if test < 0:
+                                self.printToLog("Warning: Negative sign detected in {} at {}".format(holeid, depth))
+                                self.warningsExist = True
+                                
                     except ValueError:
                         self.printToLog("non numeric or missing values detected in Easting, Northing, Elevation or EOH, line {}".format(i))
                         self.canProceed = False
@@ -1784,13 +1799,26 @@ class ValidateFiles(QDialog,VAL_FORM_CLASS):
                     except KeyError:
                         self.printToLog("Hole ID does not exist in collar file '{}', line {}".format(holeid, i))
                         self.canProceed = False
+                        
+                    if checkDict.has_key(holeid):
+                        checkDict[holeid].append(depth)
+                    else:
+                        checkDict[holeid] = [depth]
+                        
                     holelist.append(holeid)
                     i += 1
             except ValueError:
                 self.printToLog("data or column missing at line {}".format(i))
-                
+            #check for duplicate surveys
+            for holes in checkDict:
+                depthList = checkDict[holes]
+                for d in depthList:
+                    if depthList.count(d) != 1:
+                        self.printToLog("Duplicate Survey depth identified in {} at {}".format(holes, d))
+                        self.canProceed = False
+            #check for holes with no survey data
             for key in self.eohDict:
-                if holelist.count(key) == 0:
+                if not checkDict.has_key(key):
                     self.printToLog("Hole {} has no survey data".format(key))
                     self.canProceed = False
                     
@@ -1904,6 +1932,11 @@ class ValidateFiles(QDialog,VAL_FORM_CLASS):
                     depthb = surveys[(j+1)][0]
                     deptht = surveys[j][0]
                     interval = depthb - deptht
+                    #prevent throwing exception if interval is 0
+                    if interval == 0:
+                        self.printToLog("Warning: Interval between surveys is Zero between {} and {} in {}".format(deptht, depthb, holeid))
+                        j += 1
+                        continue
                     delDip = surveys[(j+1)][1] - surveys[j][1]
                     if surveys[(j+1)][0] >330:
                         azi1 = surveys[(j+1)][0] -360
