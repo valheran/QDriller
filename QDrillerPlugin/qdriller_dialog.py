@@ -752,6 +752,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.availDrillholes = []
         self.selDrillholes = []
         self.demPath = None
+        self.useEnvelope = False
         
         #set the crs using the same hardcode as in the section viewer
         self.crs= QgsCoordinateReferenceSystem()
@@ -784,6 +785,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.ledEnv.textChanged.connect(lambda: self.setVars("Env", self.ledEnv.text()))
         self.ledSecLength.textChanged.connect(lambda: self.setVars("seclength", self.ledSecLength.text()))
         self.ledDem.textChanged.connect(lambda: self.setVars("DEM", self.ledDem.text()))
+        self.chkUseEnv.toggled.connect(self.setEnvelope)
         
         #populate lists
         self.populateDHloglist()
@@ -800,22 +802,26 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.buttonBox.rejected.connect(lambda: self.canvas.scene().removeItem(self.sectionRB))
         
     def setVars(self, target, value):
+        try:
+            if target == "originX":
+               self.originX = float(value)
+            elif target == "originY":
+                self.originY = float(value)
+            elif target == "azi":
+                self.secAzi = float(value)
+            elif target == "name":
+                self.secName = value
+            elif target == "Env":
+                self.envWidth = float(value)
+            elif target == "seclength":
+                self.secLength = float(value)
+            elif target == "DEM":
+                self.demPath = value
+        except ValueError:
+            pass
+    def setEnvelope(self, value):
+        self.useEnvelope = value
         
-        if target == "originX":
-           self.originX = float(value)
-        elif target == "originY":
-            self.originY = float(value)
-        elif target == "azi":
-            self.secAzi = float(value)
-        elif target == "name":
-            self.secName = value
-        elif target == "Env":
-            self.envWidth = float(value)
-        elif target == "seclength":
-            self.secLength = float(value)
-        elif target == "DEM":
-            self.demPath = value
-            
     def subsetDrillholes(self):
         #create the subset of drill XYZ to plot
         #pull Collar names from the selection list
@@ -1065,10 +1071,11 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         if self.lstSelDH.count() == 0:
             self.messageBar.pushMessage("No Drillholes have been Selected")
             return
-        if self.chkDem.isChecked: 
+        print "dem checkbox", self.chkDem.isChecked
+        if self.chkDem.isChecked(): 
             if self.demPath is None:
-                self.messageBar.pushMessage("No DEM has been Selected")\
-            
+                self.messageBar.pushMessage("No DEM has been Selected")
+                return
         #run the methods to draw the files
         self.subsetDrillholes()
         #create drill traces
@@ -1087,7 +1094,9 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
                 
         #create drill traces
         secplane = [self.originX, self.originY, self.secAzi]
-        QDUtils.writeTraceLayer(self.holes2plotXYZ, outputlayer, plan=False, sectionplane=secplane, loadcanvas=False, crs=self.crs)
+        QDUtils.writeTraceLayer(self.holes2plotXYZ, outputlayer, useEnvelope=self.useEnvelope,
+                                envelope=self.envWidth, plan=False, sectionplane=secplane, 
+                                loadcanvas=False, crs=self.crs)
 
         # collect info for writing to section definition file
         sectionLayers.append(outputlayer)
@@ -1110,7 +1119,8 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
 
             secplane = [self.originX, self.originY, self.secAzi]
             
-            QDUtils.LogDrawer(self.holes2plotXYZ, logtarget, outputlayer, plan=False, 
+            QDUtils.LogDrawer(self.holes2plotXYZ, logtarget, outputlayer, plan=False,
+                                useEnvelope=self.useEnvelope, envelope=self.envWidth,
                                 sectionplane=secplane, crs=self.crs, loadcanvas=False)
             
             sectionLayers.append(outputlayer)

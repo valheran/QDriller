@@ -175,7 +175,7 @@ class IntervalCoordBuilder:
 
 class LogDrawer:
 #class to draw attributed traces of drillholes from tabular log data
-    def __init__(self, drillholedata, logfile, outlogfile, plan=True, sectionplane=None, crs=None, loadcanvas=True):
+    def __init__(self, drillholedata, logfile, outlogfile, useEnvelope=False, envelope=None, plan=True, sectionplane=None, crs=None, loadcanvas=True):
         self.holecoords = drillholedata #set the XYZ coord data for the drillhole dataset
         self.logfile = logfile #path of the target logfile
         self.outlogfile = outlogfile  #path for output file
@@ -184,6 +184,8 @@ class LogDrawer:
         self.tlayer = self.createEmptyLog()
         self.plantoggle = plan
         self.sectionplane = sectionplane
+        self.useEnvelope = useEnvelope
+        self.envelope = envelope
         self.logBuilder()
         
     def createEmptyLog(self):
@@ -245,8 +247,11 @@ class LogDrawer:
                     #create layers in plan view
                         logtrace = planGeomBuilder(logresultinterval)
                     else:
-                        logtrace = sectionGeomBuilder(logresultinterval, self.sectionplane)
-                        
+                        builder = SectionGeomBuilder(logresultinterval, self.sectionplane, self.envelope, self.useEnvelope)
+                        if builder.isValid:
+                            logtrace = builder.linestring
+                        else:
+                            continue
                 except (IndexError, ValueError) as e:
                     msg = "Something wrong with log data in %s at %s to %s: %s" % (holeid, lsampfrom, lsampto, e)
                     print msg
@@ -320,31 +325,53 @@ def planGeomBuilder(coordlist):
         nodestring.append(node)
     linestring = QgsGeometry.fromPolyline(nodestring)
     return linestring   
-
-def sectionGeomBuilder(coordlist, sectionplane):
-#a function that takes a dictionary of lists (XYZ) and creates a list of
-#coordinate pairs within the defined vertical plane. plane is a list of 
-#origon (x,y) and azimuth of the target vertical section [x,y,azi]
-    nodestring = []
-    for index in coordlist:
-        coordsXYZ = coordlist[index]
-        tarpoint = [coordsXYZ[0], coordsXYZ[1]]
-        delX = tarpoint[0] -sectionplane[0]
-        delY =  tarpoint[1] - sectionplane[1]
-        dist = math.sqrt( delX**2  +  delY**2)
-        #calculate the angle from origin to tarpoint
-        alpha = math.atan2(delY, delX) 
-        #calculate the angle between the point and the plane 90- azi to set radians to start at north
-        beta = alpha - math.radians(90 - sectionplane[2] )
-        #calculate the along section coord using beta and distance from origin
-        xS = math.cos(beta) * dist
-        #NOTE the "normal distance" to the point will be sin(beta)*dist. this may be usefulto exploit for making envelopes
-        # ie could use as a screening criteria and not include any nodes that are too far. may need to be careful to handle
-        # empty geometries that will be made in the logs, perhaps with some sort of flagging system
-        node = QgsPoint(xS, coordsXYZ[2])
-        nodestring.append(node)
-    linestring = QgsGeometry.fromPolyline(nodestring)
-    return linestring
+    
+class SectionGeomBuilder:
+    def __init__(self, coordlist, sectionplane, envelope, useEnvelope):
+        self.coordlist = coordlist
+        self.sectionplane = sectionplane
+        self.useEnvelope = useEnvelope
+        self.envelope = envelope
+        self.isValid = True
+        self.linestring = self.geomBuilder()
+        
+    def geomBuilder(self):
+    #a function that takes a dictionary of lists (XYZ) and creates a list of
+    #coordinate pairs within the defined vertical plane. plane is a list of 
+    #origon (x,y) and azimuth of the target vertical section [x,y,azi]
+        nodestring = []
+        for index in self.coordlist:
+            coordsXYZ = self.coordlist[index]
+            tarpoint = [coordsXYZ[0], coordsXYZ[1]]
+            delX = tarpoint[0] -self.sectionplane[0]
+            delY =  tarpoint[1] - self.sectionplane[1]
+            dist = math.sqrt( delX**2  +  delY**2)
+            #calculate the angle from origin to tarpoint
+            alpha = math.atan2(delY, delX) 
+            #calculate the angle between the point and the plane 90- azi to set radians to start at north
+            beta = alpha - math.radians(90 - self.sectionplane[2] )
+            #calculate the along section coord using beta and distance from origin
+            xS = math.cos(beta) * dist
+            #NOTE the "normal distance" to the point will be sin(beta)*dist. this may be usefulto exploit for making envelopes
+            # ie could use as a screening criteria and not include any nodes that are too far. may need to be careful to handle
+            # empty geometries that will be made in the logs, perhaps with some sort of flagging system
+            #determine if envelope cutting is enables, then test the envelope
+            
+            if self.useEnvelope:
+                
+                distance2plane = abs(math.sin(beta) * dist)
+                if distance2plane > self.envelope:
+                    continue
+            node = QgsPoint(xS, coordsXYZ[2])
+            nodestring.append(node)
+        if len(nodestring)> 1:
+            linestring = QgsGeometry.fromPolyline(nodestring)
+            self.isValid = True
+            return linestring
+        else:
+            self.isValid = False
+            
+        
         
 def readFromFile(collarfile, surveyfile):
 #read collar and survey files into drillholes dict file
@@ -447,7 +474,7 @@ def calcXYZ(drillholes, isNeg):
         #print "drillhole %s built" % (holes)
     return drillholeXYZ
     
-def writeTraceLayer(drillXYZ, outfile, plan=True, sectionplane=None, loadcanvas=True, crs=None): 
+def writeTraceLayer(drillXYZ, outfile, useEnvelope=False, envelope=None, plan=True, sectionplane=None, loadcanvas=True, crs=None): 
     #create a layer to hold plan drill traces
     crsString = crs.authid()
     uri = "LineString?field=HoleID:string&crs={}".format(crsString)
@@ -462,7 +489,12 @@ def writeTraceLayer(drillXYZ, outfile, plan=True, sectionplane=None, loadcanvas=
         if plan:
             trace = planGeomBuilder(holedat)
         else:
-            trace = sectionGeomBuilder(holedat, sectionplane)
+            builder = SectionGeomBuilder(holedat, sectionplane, envelope, useEnvelope)
+            if builder.isValid:
+                trace = builder.linestring
+            else:
+                continue
+            
             
         feat=QgsFeature()
         try:

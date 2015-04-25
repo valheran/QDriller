@@ -266,6 +266,19 @@
      <string>..</string>
     </property>
    </widget>
+   <widget class="QCheckBox" name="chkUseEnv">
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>290</y>
+      <width>181</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Only plot parts within envelope</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QListWidget" name="lstSelDH">
    <property name="geometry">
