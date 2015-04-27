@@ -1602,40 +1602,43 @@ class CanvasGrid:
 class ExportImage:
 #this is not working very well yet
     def __init__(self, canvas):
+        
+        canvas.saveAsImage(r"E:\GitHub\Test3\render.tiff", None, "TIFF")
+        
         #pull layers
-        layers = canvas.layers()
-        layerlist = []
-        for lyr in layers:
-            layerlist.append(lyr.id())
+        #layers = canvas.layers()
+        #layerlist = []
+        #for lyr in layers:
+         #   layerlist.append(lyr.id())
 
             #create image
         #mapsettings = canvas.mapSettings()
         #mapsettings.setOutputDpi(300)
         #size = mapsettings.outputSize()
-        img = QImage(QtCore.QSize(800, 600), QImage.Format_ARGB32_Premultiplied)
-        color = QColor(255, 255, 255)
-        img.fill(color.rgb())
+        #img = QImage(QtCore.QSize(800, 600), QImage.Format_ARGB32_Premultiplied)
+        #color = QColor(255, 255, 255)
+        #img.fill(color.rgb())
         #create painter
-        p = QPainter()
-        p.begin(img)
-        p.setRenderHint(QPainter.Antialiasing)
+        #p = QPainter()
+        #p.begin(img)
+        #p.setRenderHint(QPainter.Antialiasing)
 
         #create renderer
-        render = canvas.mapRenderer()
+        #render = canvas.mapRenderer()
         
         #set layers and extent
         #render.setLayerSet(layerlist)
         #render.setExtent(canvas.extent())
         
         #set output size
-        render.setOutputSize(img.size(), 300)
+        #render.setOutputSize(img.size(), 300)
         
         #render 
-        render.render(p)
+        #render.render(p)
         
-        p.end()
+        #p.end()
         #save image
-        img.save(r"E:\GitHub\Test\render.png","png")
+        #img.save(r"E:\GitHub\Test\render.png","png")
 
 VAL_FORM_CLASS, _ = uic.loadUiType(os.path.join(
 os.path.dirname(__file__), 'validation log.ui'))        
