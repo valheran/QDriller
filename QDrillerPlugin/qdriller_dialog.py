@@ -41,6 +41,7 @@ from qgis.gui import *
 
 #import module with all the technical backend code
 import QDriller_Utilities as QDUtils
+import qdriller_composer as qcomp
 sys.excepthook = sys.__excepthook__
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -1604,7 +1605,7 @@ class ExportImage:
     def __init__(self, canvas):
         
         canvas.saveAsImage(r"E:\GitHub\Test3\render.tiff", None, "TIFF")
-        
+        qcomp.makeComposition(canvas)
         #pull layers
         #layers = canvas.layers()
         #layerlist = []
