@@ -31,22 +31,29 @@ from qgis.core import *
 from qgis.gui import *
 
 
-def makeComposition(canvas):
-    #get pointer to the renderer
-    render = canvas.mapRenderer()
-    layers = canvas.layers()
-    layerlist = []
-    for lyr in layers:
-        layerlist.append(lyr.id())
-        
-    render.setLayerSet(layerlist)
+def makeComposition(canvas, maincanvas):
+    #get pointer to the section renderer
+    render = canvas.mapSettings()
+    planrender = maincanvas.mapSettings()
+
     #initialise composition
     c = QgsComposition(render)
+    cp = QgsComposition(planrender)
+    #add section map item
     x, y = 0, 0
     w, h = c.paperWidth(), c.paperHeight()
     composerMap = QgsComposerMap(c, x ,y, w, h)
-    c.addItem(composerMap)
+    c.addComposerMap(composerMap)
     
+    
+    #add plan map item
+    x, y = 0, c.paperHeight()/2
+    w, h = c.paperWidth(), (c.paperHeight()/2)
+    composerMapPlan = QgsComposerMap(cp, x ,y, w, h)
+    composerMapPlan.setMapCanvas(maincanvas)
+    c.addComposerMap(composerMapPlan)
+    
+
     dpi = c.printResolution()
     dpmm = dpi / 25.4
     width = int(dpmm * c.paperWidth())
@@ -60,9 +67,21 @@ def makeComposition(canvas):
 
     # render the composition
     imagePainter = QPainter(image)
-    sourceArea = QtCore.QRectF(0, 0, c.paperWidth(), c.paperHeight())
-    targetArea = QtCore.QRectF(0, 0, width, height)
-    c.render(imagePainter, targetArea, sourceArea)
+    
+    c.renderPage(imagePainter,0)
+    
+    #try with draw function
+    #sectsize = QtCore.QSizeF(width, (height/2))
+    plansize = QtCore.QSizeF(width, (height/2))
+    #sectextent = canvas.extent()
+    planextent = maincanvas.extent()
+    
+    #composerMap.draw(imagePainter, sectextent, sectsize, dpi)
+    #composerMapPlan.draw(imagePainter, planextent, plansize, dpi)
+    
+    
+    
+    #cp.renderPage(imagePainter,0)
     imagePainter.end()
 
-    image.save(r"E:\Github\out.png", "png")
+    image.save(r"E:\Github\out.tiff", "tiff")

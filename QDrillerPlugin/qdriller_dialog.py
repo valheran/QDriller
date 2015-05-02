@@ -697,7 +697,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
             self.addCanvasGrid(True)
             
     def saveImage(self):
-        ExportImage(self.sectionCanvas)
+        ExportImage(self.sectionCanvas, self.iface.mapCanvas())
 
 
     def mapInformation(self):
@@ -1602,10 +1602,10 @@ class CanvasGrid:
         
 class ExportImage:
 #this is not working very well yet
-    def __init__(self, canvas):
+    def __init__(self, canvas, maincanvas):
         
-        canvas.saveAsImage(r"E:\GitHub\Test3\render.tiff", None, "TIFF")
-        qcomp.makeComposition(canvas)
+        canvas.saveAsImage(r"E:\GitHub\render.tiff", None, "TIFF")
+        qcomp.makeComposition(canvas, maincanvas)
         #pull layers
         #layers = canvas.layers()
         #layerlist = []
