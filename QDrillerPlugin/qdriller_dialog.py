@@ -41,7 +41,7 @@ from qgis.gui import *
 
 #import module with all the technical backend code
 import QDriller_Utilities as QDUtils
-import qdriller_composer as qcomp
+import composer.qdriller_composer as qcomp
 sys.excepthook = sys.__excepthook__
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
