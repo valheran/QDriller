@@ -6,15 +6,66 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>898</width>
-    <height>595</height>
+    <width>1015</width>
+    <height>642</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Section Viewer</string>
   </property>
+  <property name="documentMode">
+   <bool>false</bool>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
+    <property name="leftMargin">
+     <number>3</number>
+    </property>
+    <property name="topMargin">
+     <number>3</number>
+    </property>
+    <property name="rightMargin">
+     <number>4</number>
+    </property>
+    <property name="bottomMargin">
+     <number>1</number>
+    </property>
+    <property name="horizontalSpacing">
+     <number>2</number>
+    </property>
+    <property name="verticalSpacing">
+     <number>1</number>
+    </property>
+    <item row="0" column="0">
+     <widget class="QFrame" name="fmeMap">
+      <property name="minimumSize">
+       <size>
+        <width>600</width>
+        <height>450</height>
+       </size>
+      </property>
+      <layout class="QVBoxLayout" name="vlyt">
+       <property name="sizeConstraint">
+        <enum>QLayout::SetNoConstraint</enum>
+       </property>
+       <property name="leftMargin">
+        <number>1</number>
+       </property>
+       <property name="topMargin">
+        <number>4</number>
+       </property>
+       <property name="rightMargin">
+        <number>5</number>
+       </property>
+       <property name="bottomMargin">
+        <number>1</number>
+       </property>
+       <item>
+        <layout class="QVBoxLayout" name="lytMap"/>
+       </item>
+      </layout>
+     </widget>
+    </item>
     <item row="1" column="0">
      <widget class="QFrame" name="frame_2">
       <property name="minimumSize">
@@ -36,6 +87,15 @@
        <enum>QFrame::Raised</enum>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout">
+       <property name="topMargin">
+        <number>7</number>
+       </property>
+       <property name="rightMargin">
+        <number>8</number>
+       </property>
+       <property name="bottomMargin">
+        <number>2</number>
+       </property>
        <item>
         <spacer name="horizontalSpacer">
          <property name="orientation">
@@ -142,24 +202,6 @@
       </layout>
      </widget>
     </item>
-    <item row="0" column="0">
-     <widget class="QFrame" name="fmeMap">
-      <property name="minimumSize">
-       <size>
-        <width>600</width>
-        <height>450</height>
-       </size>
-      </property>
-      <layout class="QVBoxLayout" name="vlyt">
-       <property name="sizeConstraint">
-        <enum>QLayout::SetNoConstraint</enum>
-       </property>
-       <item>
-        <layout class="QVBoxLayout" name="lytMap"/>
-       </item>
-      </layout>
-     </widget>
-    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -167,7 +209,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>898</width>
+     <width>1015</width>
      <height>21</height>
     </rect>
    </property>
@@ -191,6 +233,18 @@
      <enum>Qt::LeftToRight</enum>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
+     <property name="leftMargin">
+      <number>1</number>
+     </property>
+     <property name="topMargin">
+      <number>1</number>
+     </property>
+     <property name="rightMargin">
+      <number>2</number>
+     </property>
+     <property name="bottomMargin">
+      <number>1</number>
+     </property>
      <item>
       <widget class="QWidget" name="wdgLegend" native="true">
        <property name="sizePolicy">
@@ -206,6 +260,18 @@
         </size>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_3">
+        <property name="leftMargin">
+         <number>6</number>
+        </property>
+        <property name="topMargin">
+         <number>3</number>
+        </property>
+        <property name="rightMargin">
+         <number>3</number>
+        </property>
+        <property name="bottomMargin">
+         <number>4</number>
+        </property>
         <item>
          <layout class="QVBoxLayout" name="lytLegend"/>
         </item>
@@ -236,6 +302,18 @@
      </sizepolicy>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout_2">
+     <property name="leftMargin">
+      <number>6</number>
+     </property>
+     <property name="topMargin">
+      <number>3</number>
+     </property>
+     <property name="rightMargin">
+      <number>4</number>
+     </property>
+     <property name="bottomMargin">
+      <number>1</number>
+     </property>
      <item>
       <layout class="QVBoxLayout" name="lytIdentify">
        <property name="sizeConstraint">
@@ -516,6 +594,132 @@
    </property>
    <property name="toolTip">
     <string>save canvas as image</string>
+   </property>
+  </action>
+  <action name="actionAddLayer">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionAddOgrLayer.svg</normaloff>:/plugins/QDriller/Icons/icons/mActionAddOgrLayer.svg</iconset>
+   </property>
+   <property name="text">
+    <string>addLayer</string>
+   </property>
+   <property name="toolTip">
+    <string>Add Blank Vector Layer to Section</string>
+   </property>
+  </action>
+  <action name="actionToggleEditing">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/Icons/icons/mIconEditable.png</normaloff>:/plugins/QDriller/Icons/icons/mIconEditable.png</iconset>
+   </property>
+   <property name="text">
+    <string>ToggleEditing</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle Editing of layer</string>
+   </property>
+  </action>
+  <action name="actionAddPoint">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionCapturePoint.png</normaloff>:/plugins/QDriller/Icons/icons/mActionCapturePoint.png</iconset>
+   </property>
+   <property name="text">
+    <string>addPoint</string>
+   </property>
+   <property name="toolTip">
+    <string>Add Point Feature</string>
+   </property>
+  </action>
+  <action name="actionAddLine">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionCaptureLine.png</normaloff>:/plugins/QDriller/Icons/icons/mActionCaptureLine.png</iconset>
+   </property>
+   <property name="text">
+    <string>addLine</string>
+   </property>
+   <property name="toolTip">
+    <string>Add Line Feature</string>
+   </property>
+  </action>
+  <action name="actionAddPolygon">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionCapturePolygon.png</normaloff>:/plugins/QDriller/Icons/icons/mActionCapturePolygon.png</iconset>
+   </property>
+   <property name="text">
+    <string>addPolygon</string>
+   </property>
+   <property name="toolTip">
+    <string>Add Polygon Feature</string>
+   </property>
+  </action>
+  <action name="actionSaveEdits">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionSaveAllEdits.svg</normaloff>:/plugins/QDriller/Icons/icons/mActionSaveAllEdits.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Save Edits</string>
+   </property>
+   <property name="toolTip">
+    <string>Save changes to current layer</string>
+   </property>
+  </action>
+  <action name="actionRollBackEdits">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionRollbackAllEdits.svg</normaloff>:/plugins/QDriller/Icons/icons/mActionRollbackAllEdits.svg</iconset>
+   </property>
+   <property name="text">
+    <string>RollBack Edits</string>
+   </property>
+   <property name="toolTip">
+    <string>Rollback changes to current layer</string>
+   </property>
+  </action>
+  <action name="actionMoveFeature">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionMoveFeature.png</normaloff>:/plugins/QDriller/Icons/icons/mActionMoveFeature.png</iconset>
+   </property>
+   <property name="text">
+    <string>move Feature</string>
+   </property>
+   <property name="toolTip">
+    <string>Move Feature Location</string>
+   </property>
+  </action>
+  <action name="actionNodeTool">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/plugins/QDriller/Icons/icons/mActionNodeTool.png</normaloff>:/plugins/QDriller/Icons/icons/mActionNodeTool.png</iconset>
+   </property>
+   <property name="text">
+    <string>nodeTool</string>
+   </property>
+   <property name="toolTip">
+    <string>Edit Nodes</string>
    </property>
   </action>
  </widget>

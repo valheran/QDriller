@@ -3,6 +3,18 @@
     <file>icon.png</file>
   </qresource>
   <qresource prefix="/plugins/QDriller/Icons">
+    <file>icons/mActionNodeTool.png</file>
+    <file>icons/mActionRollbackAllEdits.svg</file>
+    <file>icons/mActionSaveAllEdits.svg</file>
+    <file>icons/mActionAddOgrLayer.svg</file>
+    <file>icons/mActionAddVertex.png</file>
+    <file>icons/mActionMoveFeature.png</file>
+    <file>icons/mActionAllEdits.svg</file>
+    <file>icons/mActionCaptureLine.png</file>
+    <file>icons/mActionCapturePoint.png</file>
+    <file>icons/mActionCapturePolygon.png</file>
+    <file>icons/mIconEditable.png</file>
+    <file>icons/mIconEditableEdits.png</file>
     <file>icons/transformed.png</file>
     <file>icons/mActionFileSave.svg</file>
     <file>icons/mActionFilter.png</file>

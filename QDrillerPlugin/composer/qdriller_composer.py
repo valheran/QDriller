@@ -36,7 +36,7 @@ os.path.dirname(__file__), 'composerbase.ui'))
 class SectionComposer(QMainWindow, COM_FORM_CLASS ):
 
     def __init__(self, sectioncanvas, maincanvas, parent=None):
-    """Constructor."""
+        """Constructor."""
         super(QDrillerDialog, self).__init__(parent)
         # Set up the user interface from Designer.
         # After setupUI you can access any designer object by doing

@@ -41,7 +41,8 @@ from qgis.gui import *
 
 #import module with all the technical backend code
 import QDriller_Utilities as QDUtils
-import composer.qdriller_composer as qcomp
+#import composer.qdrillercomposer as qcomp
+from composer import qdriller_composer as qcomp
 sys.excepthook = sys.__excepthook__
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -297,9 +298,9 @@ class QDrillerDialog(QtGui.QMainWindow, FORM_CLASS):
         
 
 class DataStore(QtCore.QObject):
-#class for handling the data inputs. This will store data inputs, as well as 
-#provide the capability for loading and saving projects 
-#ie previous variable setups)
+    #class for handling the data inputs. This will store data inputs, as well as 
+    #provide the capability for loading and saving projects 
+    #ie previous variable setups)
     #define signals
     fileCreated = QtCore.pyqtSignal()
     projectLoaded = QtCore.pyqtSignal()
@@ -428,15 +429,16 @@ class DataStore(QtCore.QObject):
         self.fileCreated.emit()
         
     def createCollarPoints(self):
-    #a function to create a shapefile of collars
+        #a function to create a shapefile of collars
         outputlayer = os.path.normpath(r"{}\{}_collars.shp".format(self.projectdir, self.projectname))
         QDUtils.createCollarLayer(self.drillholes, outputlayer, loadcanvas=self.coll2can, crs=self.projectCRS)
         
         layername = os.path.splitext(os.path.basename(outputlayer))[0]
         self.existingLayersDict[layername]= outputlayer
         self.fileCreated.emit()
-
-
+        
+        
+        
 SECT_FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'sectionview_base.ui'))
 
@@ -503,6 +505,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.sectionBar = self.addToolBar("Section Tools")
         self.sectionBar.addAction(self.actionGenerateSection)
         self.sectionBar.addAction(self.actionManageSections)
+        self.sectionBar.addAction(self.actionAddLayer)
         self.featureTools = self.addToolBar("Feature Tools")
         self.featureTools.addAction(self.actionIdentify)
         self.featureTools.addAction(self.actionMeasureTool)
@@ -527,8 +530,23 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.gridToolbar.addWidget(self.ledYspace)
         self.gridRB = QgsRubberBand(self.sectionCanvas)
         self.gridRB.setColor(QtCore.Qt.black)
-        
+        #set up editing toolbars
+        self.editingToolbar = self.addToolBar("Editing Tools")
+        self.editingToolbar.addAction(self.actionToggleEditing) 
+        self.editingActions = QActionGroup(self)
+        self.editingActions.addAction(self.actionSaveEdits)
+        self.editingActions.addAction(self.actionRollBackEdits)
+        self.editingActions.addAction(self.actionAddPoint)
+        self.editingActions.addAction(self.actionAddLine)
+        self.editingActions.addAction(self.actionAddPolygon)
+        self.editingActions.addAction(self.actionMoveFeature)
+        self.editingActions.addAction(self.actionNodeTool)
 
+        self.editingToolbar.addActions(self.editingActions.actions())
+        self.editingActions.setDisabled(True)
+        self.actionAddLine.setVisible(False)
+        self.actionAddPolygon.setVisible(False)
+        
         # connect the tool(s)
         self.actionZoom_in.triggered.connect(self.zoom_in)
         self.actionZoom_out.triggered.connect(self.zoom_out)
@@ -541,6 +559,15 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         self.actionMeasureArea.triggered.connect(self.measureArea)
         self.actionGrid.toggled.connect(self.addCanvasGrid)
         self.actionSaveAsImage.triggered.connect(self.saveImage)
+        self.actionAddLayer.triggered.connect(self.addSectionLayer)
+        self.actionToggleEditing.triggered.connect(self.toggleEdits)
+        self.actionAddPoint.toggled.connect(self.on_addPoint)
+        self.actionAddLine.toggled.connect(self.on_addLine)
+        self.actionAddPolygon.toggled.connect(self.on_addPolygon)
+        self.actionSaveEdits.triggered.connect(self.on_saveEdits)
+        self.actionRollBackEdits.triggered.connect(self.on_rollBack)
+        self.actionMoveFeature.triggered.connect(self.on_moveFeature)
+        self.actionNodeTool.triggered.connect(self.on_nodeTool)
         
         # create the map tool(s)
         self.tool_zoomin = QgsMapToolZoom(self.sectionCanvas, False)
@@ -559,7 +586,9 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
         #listen for signals
         self.layertreeRoot.visibilityChanged.connect(self.visibilitySetter)
         self.legendView.currentLayerChanged.connect(self.getFacing)
+        self.legendView.currentLayerChanged.connect(self.onSelLayerChange)
         self.sectionCanvas.extentsChanged.connect(self.refreshGrid)
+        self.sectionCanvas.mapToolSet.connect(self.onToolChange)
         self.ledXspace.editingFinished.connect(self.refreshGrid)
         self.ledYspace.editingFinished.connect(self.refreshGrid)
        # self.legendView.currentLayerChanged.connect(self.model.refreshLayerLegend)
@@ -574,28 +603,26 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
 
     def mapPan(self):
         self.sectionCanvas.setMapTool(self.tool_pan)
-        #print "pan action triggered"
-        #centre = self.sectionCanvas.center()
-        #print "centre of canvas", centre.toString()
         
     def mapTouch(self):
         self.sectionCanvas.setMapTool(self.tool_touch)
-        #print "touch action triggered"
-        #self.mapInformation()
+        self.statusbar.clear()
+        self.statusbar.showMessage("Current Map Tool: Touch")
         
     def zoom_in(self): #could these type things be set up in a lambda connection
         self.sectionCanvas.setMapTool(self.tool_zoomin)
-        #print "zoom in action triggered"
         
     def zoom_out(self): #could these type things be set up in a lambda connection
         self.sectionCanvas.setMapTool(self.tool_zoomout)
-        #print "zoom out action triggered"
         
     def measureLength(self):
         self.sectionCanvas.setMapTool(self.tool_measLength)
-    
+        self.statusbar.clear()
+        self.statusbar.showMessage("Current Map Tool: Line Measure. LMB to add segment, RMB to finish")
     def measureArea(self):
         self.sectionCanvas.setMapTool(self.tool_measArea)
+        self.statusbar.clear()
+        self.statusbar.showMessage("Current Map Tool: Area Measure. LMB to add vertex, RMB to finish")
         
     def dispCoords(self, point):
         xCoord = int(point.x())
@@ -663,6 +690,7 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
             node.setExpanded(True)
     
     def getFacing(self):
+        #this could be collapsed into onSelLayerChange?
         group = self.legendView.currentGroupNode()
         groupname = group.name()
         path = os.path.normpath("{}\\{}\\{}.qdsd".format(QDrillerDialog.datastore.projectdir, groupname, groupname))
@@ -699,21 +727,220 @@ class SectionView(QtGui.QMainWindow, SECT_FORM_CLASS):
     def saveImage(self):
         ExportImage(self.sectionCanvas, self.iface.mapCanvas())
 
-
-    def mapInformation(self):
-        print "canvas extent", self.sectionCanvas.extent()
-        self.sectionCanvas.refresh()
-        print "canvas unit", self.sectionCanvas.mapUnits()
-        centre = self.sectionCanvas.center()
-        print "centre of canvas", centre.toString()
-        print "canvas projection ", self.sectionCanvas.mapSettings().destinationCrs().authid()
-        print "Canvas Scale", self.sectionCanvas.scale()
-        print"canvas setting scale", self.sectionCanvas.mapSettings().scale
-        print "antialiasing", self.sectionCanvas.antiAliasingEnabled()
+    def addSectionLayer(self):
+        #add a blank layer to a section to allow for annotation, interpretation etc
         
-    def printout(self):
-        print self.scaleBox.scale()
+        #call up dialog to get parameters
+        paraDlg = AddNewLayerDialog()
+        if paraDlg.exec_()==1:
+            #create file path
+            #if self.legendView.currentGroupNode() is not None:
+             #   currGroup =self.legendView.currentGroupNode()
+            #else:
+            for groups in self.layertreeRoot.children():
+                #print groups.isVisible
+                if groups.isVisible() == QtCore.Qt.Checked:
+                    currGroup = groups
+            secName = currGroup.name()
+            lyrName = paraDlg.lyrName
+            filepath = os.path.normpath("{}\\{}\\{}.shp".format(QDrillerDialog.datastore.projectdir, secName, lyrName))
+            #create empty file
+            writer = QgsVectorFileWriter(filepath, "CP1250", paraDlg.fields, paraDlg.geometryType, self.crs, "ESRI Shapefile")
+            del writer
+            #add to section definition
+            defnTree = ET.parse(os.path.normpath("{}\\{}\\{}.qdsd".format(QDrillerDialog.datastore.projectdir, secName, secName)))
+            defnRoot = defnTree.getroot()
+            ET.SubElement(defnRoot, "layer").text = filepath
+            tree = ET.ElementTree(defnRoot)
+            tree.write(os.path.normpath("{}\\{}\\{}.qdsd".format(QDrillerDialog.datastore.projectdir, secName, secName)))
+            #add to sectionview
+            l = QgsVectorLayer(filepath, lyrName,"ogr")
+            QgsMapLayerRegistry.instance().addMapLayer(l, False)
+            currGroup.addLayer(l)
+           
+    def onToolChange(self, newtool):
+        try:
+            self.statusbar.clear()
+            self.statusbar.showMessage("Current Map Tool:{}".format(newtool.toolName()))
+            #print "oldtool", oldtool.toolName()
+            if not newtool.isEditTool():
+                self.actionAddLine.setChecked(False)
+                self.actionAddPoint.setChecked(False)
+                self.actionAddPolygon.setChecked(False)
+                self.actionNodeTool.setChecked(False)
+                self.actionMoveFeature.setChecked(False)
+        except AttributeError:
+            pass
+            
+    def onSelLayerChange(self):
+        layer = self.legendView.currentLayer()
+        geotype = layer.geometryType()
+        #set the right combination of editing buttons and button checkstates
+        self.actionMoveFeature.setChecked(False)
+        if geotype == QGis.Point:
+            self.actionAddPoint.setVisible(True)
+            self.actionAddPoint.setChecked(False)
+            self.actionAddLine.setVisible(False)
+            self.actionAddPolygon.setVisible(False)
+        elif geotype == QGis.Line:
+            self.actionAddPoint.setVisible(False)
+            self.actionAddLine.setVisible(True)
+            self.actionAddLine.setChecked(False)
+            self.actionAddPolygon.setVisible(False)
+        elif geotype == QGis.Polygon:
+            self.actionAddPoint.setVisible(False)
+            self.actionAddLine.setVisible(False)
+            self.actionAddPolygon.setVisible(True)
+            self.actionAddPolygon.setChecked(False)
+                
+        #set the toggleEdits button to the right state
+        if layer.isEditable():
+            self.actionToggleEditing.setChecked(True)
+            self.editingActions.setEnabled(True)
+        else:
+            self.actionToggleEditing.setChecked(False)
+            self.editingActions.setEnabled(False)
         
+        #enable/disable saving/rollback edits depending on modified state of the layer
+        if layer.isModified():
+            self.actionSaveEdits.setEnabled(True)
+            self.actionRollBackEdits.setEnabled(True)
+        else:
+            self.actionSaveEdits.setEnabled(False)
+            self.actionRollBackEdits.setEnabled(False)
+        #set signal to listen for changes
+        layer.layerModified.connect(lambda: self.enableSaveActions(layer))
+        
+        #disable editing tools to prevent using a tool on an unintended layer
+        currMaptool = self.sectionCanvas.mapTool()
+        if currMaptool.isEditTool():
+            self.mapTouch()
+            
+    def toggleEdits(self):
+        #turn on/off editing for the currently selected layer
+        #set current layer as editable/not editable
+        layer = self.legendView.currentLayer()
+        if self.actionToggleEditing.isChecked():
+            #start editing
+            layer.startEditing()
+            self.editingActions.setEnabled(True)
+            #set map tool to touch to stop accidentally using another edit tool
+            self.mapTouch()
+            self.actionTouch.setChecked(True)
+        else:
+            #stop editing
+            if layer.isModified():
+                #prompt user for input for what to do with unsaved edits
+                msgbox = QMessageBox()
+                msgbox.setWindowTitle("Stop Editing")
+                msgbox.setIcon(QMessageBox.Information)
+                msgbox.setText("{} has unsaved changes".format(layer.name()))
+                msgbox.setInformativeText("Do you want to save the changes?")
+                msgbox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+                result = msgbox.exec_()
+                
+                if result == QMessageBox.Save:
+                    layer.commitChanges()
+                    self.editingActions.setEnabled(False)
+                    self.mapTouch()
+                    
+                elif result == QMessageBox.Discard:
+                    layer.rollBack()
+                    self.editingActions.setEnabled(False)
+                    self.mapTouch()
+                    
+                elif result == QMessageBox.Cancel:
+                    self.actionToggleEditing.setChecked(True)
+            else:
+                layer.commitChanges()
+                self.editingActions.setEnabled(False)
+                self.mapTouch()
+                self.actionTouch.setChecked(True)
+           
+    def enableSaveActions(self, layer):
+        if layer.isModified():
+            self.actionSaveEdits.setEnabled(True)
+            self.actionRollBackEdits.setEnabled(True)
+        else:
+            self.actionSaveEdits.setEnabled(False)
+            self.actionRollBackEdits.setEnabled(False)
+            
+    def on_saveEdits(self):
+        #save changes to current layer
+        layer = self.legendView.currentLayer()
+        layer.commitChanges()
+        self.actionSaveEdits.setEnabled(False)
+        self.actionRollBackEdits.setEnabled(False)
+        layer.startEditing()
+        
+    def on_rollBack(self):
+        #roll back changes to current layer
+        layer = self.legendView.currentLayer()
+        layer.rollBack()
+        self.actionRollBackEdits.setEnabled(False)
+        self.actionSaveEdits.setEnabled(False)
+        layer.startEditing()
+        
+    def on_addPoint(self):
+        # call map tool to add new features to current layer
+        layer = self.legendView.currentLayer()
+        
+        if layer.isEditable():
+            self.tool_addPoint = AddNewPointFeature(self.sectionCanvas, layer )
+            self.sectionCanvas.setMapTool(self.tool_addPoint)
+            self.statusbar.clear()
+            self.statusbar.showMessage("Add Point: LMB to add vertex")
+            
+        else:
+            print "layer {} is not editable".format(layer.name())
+            
+    def on_addLine(self):
+        # call map tool to add new features to current layer
+        layer = self.legendView.currentLayer()
+        
+        if layer.isEditable():
+            self.tool_addLine = AddNewPolyFeature(self.sectionCanvas, layer, "Line" )
+            self.sectionCanvas.setMapTool(self.tool_addLine)
+            self.statusbar.clear()
+            self.statusbar.showMessage("Add Line: LMB to add vertex, RMB to accept feature ")
+        else:
+            print "layer {} is not editable".format(layer.name())
+            
+    def on_addPolygon(self):
+        # call map tool to add new features to current layer
+        layer = self.legendView.currentLayer()
+        
+        if layer.isEditable():
+            self.tool_addPoly = AddNewPolyFeature(self.sectionCanvas, layer, "Polygon" )
+            self.sectionCanvas.setMapTool(self.tool_addPoly)
+            self.statusbar.clear()
+            self.statusbar.showMessage("Add Polygon: LMB to add vertex, RMB to accept feature ")
+        else:
+            print "layer {} is not editable".format(layer.name())
+            
+    def on_moveFeature(self):
+        layer = self.legendView.currentLayer()
+        
+        if layer.isEditable():
+            self.tool_moveFeature = MoveFeatureTool(self.sectionCanvas, layer)
+            self.sectionCanvas.setMapTool(self.tool_moveFeature)
+            self.statusbar.clear()
+            self.statusbar.showMessage("Move Feature Tool: Drag to move feature; Hold CTRL to multiselect")
+        else:
+            print "layer {} is not editable".format(layer.name())
+            
+    def on_nodeTool(self):
+        layer = self.legendView.currentLayer()
+        
+        if layer.isEditable():
+            self.tool_nodeTool = NodeTool(self.sectionCanvas, layer)
+            self.sectionCanvas.setMapTool(self.tool_nodeTool)
+            self.statusbar.clear()
+            self.statusbar.showMessage("Node Tool: LMB select Feature; drag to move vertex; double click to add vertex; DEL/BKSP to remove vertex")
+        else:
+            self.statusbar.clear()
+            self.statusbar.showMessage("layer {} is not editable".format(layer.name()))
+            
     def closeEvent(self, event):
         #clean up map registry of files that were opened in section view
         layerstoclose = self.layertreeRoot.findLayerIds()
@@ -1145,9 +1372,18 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         secDef= ET.Element("sectionDefinition", {"name":self.secName})
         for lyrs in sectionLayers:
             ET.SubElement(secDef, "layer").text = lyrs
-        ET.SubElement(secDef, "facing").text = str(secFacing)
+        ET.SubElement(secDef, "originX").text = str(self.originX)
+        ET.SubElement(secDef, "originY").text = str(self.originY)
+        ET.SubElement(secDef, "secAzi").text = str(self.secAzi)
+        ET.SubElement(secDef, "secLength").text = str(self.secLength)
+        ET.SubElement(secDef, "envelope").text = str(self.envWidth)
+        ET.SubElement(secDef, "DEM").text = str(self.demPath)
+        ET.SubElement(secDef, "facing").text = str(self.secFacing)
+        #may need to include info on other raster layers used for profiles or as images
         
+        #create path for section definition file
         secDefPath = os.path.normpath("{}\\{}.qdsd".format(os.path.dirname(outputlayer),self.secName))
+        #write definition to file in xml format
         tree = ET.ElementTree(secDef)
         tree.write(secDefPath)
         #send infomation to the datastore about the created section
@@ -1197,17 +1433,64 @@ class SectionManager(QtGui.QDialog, MAN_FORM_CLASS):
         self.lytMessage.addWidget(self.messageBar)
         #connect buttons    
         self.btnDelete.clicked.connect(self.delSection)
-
+        self.btnDeleteLayer.clicked.connect(self.delLayer)
         self.popList()
         
     def popList(self):
+        """
         self.lstSections.clear()
         for sections in QDrillerDialog.datastore.availSectionDict:
             self.lstSections.addItem(sections)
-        
+        """
+        self.treeSections.clear()
+        #get all sections in project
+        for section in QDrillerDialog.datastore.availSectionDict:
+            #open the sec def file
+            defpath = QDrillerDialog.datastore.availSectionDict[section]
+            secdeftree = ET.parse(defpath)
+            defroot = secdeftree.getroot()
+            treeSec = QTreeWidgetItem(self.treeSections)
+            treeSec.setText(0, section)
+            for lyrs in defroot.findall("layer"):
+                #print lyrs
+                #print lyrs.text()
+                lname =os.path.splitext(os.path.basename(lyrs.text))[0]
+                treeSecLayer = QTreeWidgetItem(treeSec)
+                treeSecLayer.setText(0, lname)
+                
+    def delLayer(self):
+        #get selected layers and delete them
+        for item in self.treeSections.selectedItems():
+            layername = item.text(0)
+            sectionname = item.parent().text(0)
+            sectionpath = QDrillerDialog.datastore.availSectionDict[sectionname] #path to the secdef file
+            sectiondir = os.path.dirname(sectionpath)
+            layerpath = os.path.normpath("{}\\{}.shp".format(sectiondir, layername))
+            #remove file from registry
+            ltoclose = QgsMapLayerRegistry.instance().mapLayersByName(layername)
+            layerstoclose = []
+            for i in ltoclose:
+                layerstoclose.append(i.id())
+            QgsMapLayerRegistry.instance().removeMapLayers(layerstoclose)
+            #delete the shapefile
+            QgsVectorFileWriter.deleteShapeFile(layerpath)
+            #remove reference in section definition file
+            secdeftree = ET.parse(sectionpath)
+            defroot = secdeftree.getroot()
+            for lyrs in defroot.findall("layer"):
+                if lyrs.text == layerpath:
+                    defroot.remove(lyrs)
+            secdeftree.write(sectionpath)
+            #refresh list, send message and refresh SectionView
+            self.popList()
+            QDrillerDialog.datastore.saveProjectData()
+            msg = " Layer {} has been removed from Section {} and project saved".format(layername, sectionname)
+            self.messageBar.pushMessage(msg)
+            self.sectionDeleted.emit()
+            
     def delSection(self):
-        for item in self.lstSections.selectedItems():
-            defpath = QDrillerDialog.datastore.availSectionDict[item.text()]
+        for item in self.treeSections.selectedItems():
+            defpath = QDrillerDialog.datastore.availSectionDict[item.text(0)]
             
             tree = ET.parse(defpath)
             dfn = tree.getroot()
@@ -1490,17 +1773,13 @@ class MeasureAreaTool(QgsMapToolEmitPoint):
         
     def canvasPressEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.RightButton:
-            print "condition 1"
-           
             self.endPoint = self.toMapCoordinates(mouseEvent.pos())
             self.total.setText(self.formatText(self.calculateTotal()))
-           
             self.showLine()
             self.isEmittingPoint = False
             
             
         elif not self.isEmittingPoint:
-            print "condition 2"
             self.reset()
             self.startPoint = self.endPoint = self.toMapCoordinates(mouseEvent.pos())
             #self.seg.setText(self.formatText(self.calculateSeg()))
@@ -1508,8 +1787,6 @@ class MeasureAreaTool(QgsMapToolEmitPoint):
             self.points.append(self.startPoint)
             
         else:
-            print "condition 3"
-            
             self.startPoint = self.toMapCoordinates(mouseEvent.pos())
             #self.seg.setText(self.formatText(self.calculateSeg()))
             self.isEmittingPoint = True
@@ -1557,6 +1834,408 @@ class MeasureAreaTool(QgsMapToolEmitPoint):
         QgsMapTool.deactivate(self)
         self.deactivated.emit()
         
+class AddNewPointFeature(QgsMapToolEmitPoint):
+    def __init__(self, canvas, layer):
+        QgsMapToolEmitPoint.__init__(self, canvas)
+        self.canvas = canvas
+        self.layer = layer
+        self.provider = self.layer.dataProvider()
+        self.fields = self.provider.fields()
+        self.buffer = self.layer.editBuffer()
+        #connect signal to restart buffer if edits are saved while tool is active
+        self.layer.editingStarted.connect(self.restartBuffer)
+        #initialise parameters
+        
+    def isEditTool(self):
+        #overridden mapTool function to identify this as an editing tool
+        return True
+            
+    def toolName(self):
+        return "AddPointFeature"
+        
+    def restartBuffer(self):
+        self.buffer = self.layer.editBuffer()
+        
+    def canvasPressEvent(self, mouseEvent):
+        point = self.toMapCoordinates(mouseEvent.pos())
+        feat = QgsFeature(self.fields)
+        geom = QgsGeometry.fromPoint(point)
+        feat.setGeometry(geom)
+        self.buffer.addFeature(feat)
+        self.layer.triggerRepaint()
+        
+    def deactivate(self):
+        print "point add tool deactivated"
+        QgsMapTool.deactivate(self)
+
+class AddNewPolyFeature(QgsMapToolEmitPoint):
+    #add new polyline or polygon feature
+    def __init__(self, canvas, layer, geometryType):
+        QgsMapToolEmitPoint.__init__(self, canvas)
+        self.canvas = canvas
+        self.layer = layer
+        self.geometryType = geometryType
+        self.provider = self.layer.dataProvider()
+        self.fields = self.provider.fields()
+        self.buffer = self.layer.editBuffer()
+        #self.buffer.layerModified.connect(self.layer.triggerRepaint)
+        #connect signal to restart buffer if edits are saved while tool is active
+        self.layer.editingStarted.connect(self.restartBuffer)
+        #initialise parameters
+        if self.geometryType == "Line":
+            self.rubberBand = QgsRubberBand(canvas, QGis.Line)
+            self.rubberBand.setColor(QtCore.Qt.red)
+        elif self.geometryType == "Polygon":
+            self.rubberBand = QgsRubberBand(canvas, QGis.Polygon)
+            self.rubberBand.setBorderColor(QtCore.Qt.red)
+            self.rubberBand.setWidth(1)
+            
+        self.points = []
+        self.endPoint = None
+        self.isEmittingPoint = False
+        
+    def isEditTool(self):
+        #overridden mapTool function to identify this as an editing tool
+        return True
+        
+    def toolName(self):
+        return "AddPolyFeature"
+        
+    def reset(self):
+        self.points = []
+        self.endPoint = None
+        self.isEmittingPoint = False
+        if self.geometryType == "Line":
+            self.rubberBand.reset(QGis.Line)
+        elif self.geometryType == "Polygon":
+            self.rubberBand.reset(QGis.Polygon)
+            
+    def restartBuffer(self):
+        self.buffer = self.layer.editBuffer()
+        
+    def keyPressEvent(self, keyEvent):
+        #Use Backspace to remove the last added nodeType    
+        print keyEvent
+        if keyEvent.key() == QtCore.Qt.Key_Backspace:
+            self.points.pop()
+            self.showBand()
+        #Use escape key to cancel current feature 
+        if keyEvent.key() == QtCore.Qt.Key_Escape:
+            self.reset()
+            
+    def canvasPressEvent(self, mouseEvent):
+        if mouseEvent.button() == QtCore.Qt.RightButton:
+            self.addFeature()
+            self.isEmittingPoint = False
+            self.reset()
+            
+        elif not self.isEmittingPoint:
+            self.isEmittingPoint = True
+            self.points.append(self.toMapCoordinates(mouseEvent.pos()))
+            
+        else:
+            self.isEmittingPoint = True
+            self.points.append(self.toMapCoordinates(mouseEvent.pos()))
+            self.showBand()
+            
+    def canvasMoveEvent(self, e):
+        if not self.isEmittingPoint:
+            return
+        self.endPoint = self.toMapCoordinates(e.pos())
+        self.showBand(fromCursor=True)
+        
+    def showBand(self, fromCursor=False):
+        if self.geometryType == "Line":
+            self.rubberBand.reset(QGis.Line)
+        elif self.geometryType == "Polygon":
+            self.rubberBand.reset(QGis.Polygon)
+        for point in self.points:
+            self.rubberBand.addPoint(point, True) #was false
+        if fromCursor == True:
+            self.rubberBand.addPoint(self.endPoint, True)
+        self.rubberBand.show()
+    
+    def addFeature(self):
+        feat = QgsFeature(self.fields)
+        print feat.isValid()
+        if self.geometryType == "Line":
+            geom = QgsGeometry.fromPolyline(self.points)
+            print geom.isGeosValid()
+        elif self.geometryType == "Polygon":
+            geom = QgsGeometry.fromPolygon([self.points])
+            print geom.isGeosValid()
+        feat.setGeometry(geom)
+        print feat.isValid()
+        addfeat = self.buffer.addFeature(feat)
+        print "addfeat", addfeat
+        self.layer.triggerRepaint()
+        
+    def deactivate(self):
+        self.reset()
+        print "poly add tool deactivated"
+        #self.canvas.scene().removeItem(self.rubberBand)
+        QgsMapTool.deactivate(self)
+        
+class MoveFeatureTool(QgsMapToolEmitPoint):
+    #tool to move the selected feature in a click and drag fashion
+    def __init__(self, canvas, layer):
+        QgsMapToolEmitPoint.__init__(self, canvas)
+        self.canvas = canvas
+        self.layer = layer
+        self.startpoint= None
+        self.endpoint = None
+        self.selFeat = None
+        self.emitting = False
+        self.multiselect = False
+        self.buffer = self.layer.editBuffer()
+        #connect signal to restart buffer if edits are saved while tool is active
+        self.layer.editingStarted.connect(self.restartBuffer)
+        if self.layer.geometryType() == QGis.Line:
+            self.rubberBand = QgsRubberBand(canvas, QGis.Line)
+            self.rubberBand.setColor(QtCore.Qt.red)
+        elif self.layer.geometryType() == QGis.Polygon:
+            self.rubberBand = QgsRubberBand(canvas, QGis.Polygon)
+            self.rubberBand.setBorderColor(QtCore.Qt.red)
+            self.rubberBand.setWidth(1)
+        elif self.layer.geometryType() == QGis.Point:
+            self.rubberBand = QgsRubberBand(canvas, QGis.Point)
+            self.rubberBand.setColor(QtCore.Qt.red)
+
+    def isEditTool(self):
+        #overridden mapTool function to identify this as an editing tool
+        return True
+        
+    def toolName(self):
+        return "Move Feature"
+        
+    def reset(self):
+        #reset parameters to allow for next move
+        if self.layer.geometryType() == QGis.Line:
+            self.rubberBand.reset(QGis.Line)
+        elif self.layer.geometryType() == QGis.Polygon:
+            self.rubberBand.reset(QGis.Polygon)
+        elif self.layer.geometryType() == QGis.Point:
+            self.rubberBand.reset(QGis.Point)
+        self.startpoint= None
+        self.endpoint = None
+        self.selFeat = None
+        self.emitting = False
+
+    def restartBuffer(self):
+        self.buffer = self.layer.editBuffer()
+        
+    def canvasPressEvent(self, mouseEvent):
+        #select the desired feature
+        #get the mouse coordinates, also store these
+        
+        self.startpoint = self.toMapCoordinates(mouseEvent.pos())
+        #convert coordinates into search box
+        radius = self.searchRadiusMU(self.canvas)
+        p1 = QgsPoint(self.startpoint.x()-radius, self.startpoint.y()-radius)
+        p2 = QgsPoint(self.startpoint.x()+radius, self.startpoint.y()+radius)
+        searchbox = self.toLayerCoordinates(self.layer, QgsRectangle(p1,p2))
+        #select feature within search box, also stor the features geometry
+        self.layer.select(searchbox, False) #False means only one feature can be selected at a time
+        self.selFeat = self.layer.selectedFeatures()
+        if not self.multiselect:
+            self.emitting = True
+    def canvasMoveEvent(self, mouseEvent):
+        #create a rubberband to represent the feature while it is being moved
+        if self.emitting:
+            #get current cursor position
+            currPoint = self.toMapCoordinates(mouseEvent.pos())
+            transX = currPoint.x() - self.startpoint.x()
+            transY = currPoint.y() - self.startpoint.y()
+            
+            for feat in self.selFeat:
+                #create rubberband from geometry
+                geom = feat.geometry()
+                self.rubberBand.addGeometry(geom, self.layer)
+            #apply translating to current position
+            self.rubberBand.setTranslationOffset(transX, transY)
+        
+    def canvasReleaseEvent(self, mouseEvent):
+        #perform the feature move using translate determined by start position and end position
+        if not self.multiselect:
+            #get current cursor location
+            currPoint = self.toMapCoordinates(mouseEvent.pos())
+            #calculate the translation from startpoint
+            transX = currPoint.x() - self.startpoint.x()
+            transY = currPoint.y() - self.startpoint.y()
+            #performtranslation
+            for feat in self.selFeat:
+                geom = feat.geometry()
+                geom.translate(transX, transY)
+                self.buffer.changeGeometry(feat.id(), geom)
+            #reset parameters ready for next move
+            self.layer.removeSelection()
+            self.layer.triggerRepaint()
+            self.reset()
+        
+    def keyPressEvent(self, keyEvent):
+        #Use the Escape key to cancel the action
+        if keyEvent.key() == QtCore.Qt.Key_Escape:
+            self.reset()
+        #Use holding the control key down to allow multi selection
+        if keyEvent.key() == QtCore.Qt.Key_Control:
+            self.multiselect = True
+    def keyReleaseEvent(self, keyEvent):
+        if keyEvent.key() == QtCore.Qt.Key_Control:
+            self.multiselect = False
+    def deactivate(self):
+        self.reset()
+        print "move tool deactivated"
+        #self.canvas.scene().removeItem(self.rubberBand)
+        QgsMapTool.deactivate(self)
+        
+class NodeTool(QgsMapToolEmitPoint):
+    def __init__(self, canvas, layer):
+        QgsMapToolEmitPoint.__init__(self, canvas)
+        self.canvas = canvas
+        self.layer = layer
+        self.startpoint= None
+        self.selFeat = None
+        self.targetgeom = None
+        self.tarvert = None
+        self.emitting = False
+        self.buffer = self.layer.editBuffer()
+        #connect signal to restart buffer if edits are saved while tool is active
+        self.layer.editingStarted.connect(self.restartBuffer)
+        if self.layer.geometryType() == QGis.Line:
+            self.rubberBand = QgsRubberBand(canvas, QGis.Line)
+            self.rubberBand.setColor(QtCore.Qt.red)
+            self.rubberBand.setIcon(QgsRubberBand.ICON_BOX)
+        elif self.layer.geometryType() == QGis.Polygon:
+            self.rubberBand = QgsRubberBand(canvas, QGis.Polygon)
+            self.rubberBand.setBorderColor(QtCore.Qt.red)
+            self.rubberBand.setWidth(1)
+            self.rubberBand.setIcon(QgsRubberBand.ICON_BOX)
+        self.vertMarker = QgsVertexMarker(canvas)
+        self.vertMarker.setIconType(QgsVertexMarker.ICON_BOX)
+        self.vertMarker.setColor(QtCore.Qt.blue)
+
+    def isEditTool(self):
+        #overridden mapTool function to identify this as an editing tool
+        return True
+        
+    def toolName(self):
+        return "Node Tool"
+        
+    def reset(self):
+        #reset parameters to allow for next move
+        if self.layer.geometryType() == QGis.Line:
+            self.rubberBand.reset(QGis.Line)
+        elif self.layer.geometryType() == QGis.Polygon:
+            self.rubberBand.reset(QGis.Polygon)
+
+        self.startpoint= None
+        self.selFeat = None
+        self.emitting = False
+        self.targetgeom = None
+        self.tarvert = None
+        #self.vertMarker.hide()
+
+    def restartBuffer(self):
+        self.buffer = self.layer.editBuffer()
+        
+    def canvasPressEvent(self, mouseEvent):
+        #select vertex ready to move it
+        if self.targetgeom is not None:
+            currPoint = self.toMapCoordinates(mouseEvent.pos())
+            #dist, self.tarvert = self.targetgeom.closestVertexWithContext(currPoint)
+            vertp, self.tarvert, bvert, avert, dist = self.targetgeom.closestVertex(currPoint)
+            try:
+                if math.sqrt(dist) > self.searchRadiusMU(self.canvas):
+                    self.tarvert = None
+                    self.layer.removeSelection()
+                    
+                else:
+                    #create a rubberband item for currently selected vertex
+                    self.vertMarker.setCenter(self.targetgeom.vertexAt(self.tarvert))
+                    self.emitting = True
+            except ValueError:
+                pass
+        
+    def canvasMoveEvent(self, mouseEvent):
+        #update rubberband
+        if self.emitting:
+            currPoint = self.toLayerCoordinates(self.layer, self.toMapCoordinates(mouseEvent.pos()))
+            self.targetgeom.moveVertex(currPoint.x(), currPoint.y(), self.tarvert)
+            self.rubberBand.setToGeometry(self.targetgeom, self.layer)
+            self.vertMarker.setCenter(self.targetgeom.vertexAt(self.tarvert))
+
+            
+    def canvasReleaseEvent(self, mouseEvent):
+    #functionality dependent on whether tool is "emitting"
+        if not self.emitting:
+            #select a feature to edit
+            self.reset()
+            self.startpoint = self.toMapCoordinates(mouseEvent.pos())
+            #convert coordinates into search box
+            radius = self.searchRadiusMU(self.canvas)
+            p1 = QgsPoint(self.startpoint.x()-radius, self.startpoint.y()-radius)
+            p2 = QgsPoint(self.startpoint.x()+radius, self.startpoint.y()+radius)
+            searchbox = self.toLayerCoordinates(self.layer, QgsRectangle(p1,p2))
+            #select feature within search box
+            self.layer.select(searchbox, False) #False means only one feature can be selected at a time
+            featlist = self.layer.selectedFeatures()
+            if featlist:
+                self.selFeat = featlist[0]
+                #create rubberband from geometry
+                self.targetgeom = self.selFeat.geometry()
+                self.rubberBand.addGeometry(self.targetgeom, self.layer)
+                
+        elif self.emitting:
+            currPoint = self.toLayerCoordinates(self.layer, self.toMapCoordinates(mouseEvent.pos()))
+            self.targetgeom.moveVertex(currPoint.x(), currPoint.y(), self.tarvert)
+            self.buffer.changeGeometry(self.selFeat.id(), self.targetgeom)
+            self.rubberBand.setToGeometry(self.targetgeom, self.layer)
+            self.vertMarker.setCenter(self.targetgeom.vertexAt(self.tarvert))
+            self.layer.triggerRepaint()
+            self.emitting = False
+            
+    def canvasDoubleClickEvent(self, mouseEvent):
+        #select vertex ready to move it
+        currPoint = self.toMapCoordinates(mouseEvent.pos())
+        dist, segPoint, afterVert = self.targetgeom.closestSegmentWithContext(currPoint)
+        if math.sqrt(dist) > self.searchRadiusMU(self.canvas):
+            self.tarvert = None
+            
+        else:
+            self.targetgeom.insertVertex(segPoint.x(), segPoint.y(), afterVert)
+            self.buffer.changeGeometry(self.selFeat.id(), self.targetgeom)
+            self.rubberBand.setToGeometry(self.targetgeom, self.layer)
+            self.vertMarker.setCenter(self.targetgeom.vertexAt(afterVert))
+            self.layer.triggerRepaint()
+            
+    def keyPressEvent(self, keyEvent):
+        if keyEvent.key() == QtCore.Qt.Key_Escape:
+            self.reset()
+            self.layer.removeSelection()
+        #use backspace to remove vertex and select next vertex closer to origin
+        if keyEvent.key() == QtCore.Qt.Key_Backspace and self.tarvert is not None:
+            self.targetgeom.deleteVertex(self.tarvert)
+            self.tarvert -= 1
+            self.vertMarker.setCenter(self.targetgeom.vertexAt(self.tarvert))
+            self.buffer.changeGeometry(self.selFeat.id(), self.targetgeom)
+            self.rubberBand.setToGeometry(self.targetgeom, self.layer)
+            self.layer.triggerRepaint()
+        #use delete to remove vertex and select next vertex closest to the end
+        if keyEvent.key() == QtCore.Qt.Key_Delete and self.tarvert is not None:
+            self.targetgeom.deleteVertex(self.tarvert)
+            self.vertMarker.setCenter(self.targetgeom.vertexAt(self.tarvert))
+            self.buffer.changeGeometry(self.selFeat.id(), self.targetgeom)
+            self.rubberBand.setToGeometry(self.targetgeom, self.layer)
+            self.layer.triggerRepaint()
+
+    def deactivate(self):
+        self.reset()
+        print "node tool deactivated"
+        self.canvas.scene().removeItem(self.rubberBand)
+        self.canvas.scene().removeItem(self.vertMarker)
+        self.layer.removeSelection()
+        QgsMapTool.deactivate(self)
+    
 class CanvasGrid:
 
     def __init__(self, canvas, xspace, yspace, rubberband):
@@ -1601,7 +2280,7 @@ class CanvasGrid:
         return (round(number / roundto) * roundto)
         
 class ExportImage:
-#this is not working very well yet
+    #this is not working very well yet
     def __init__(self, canvas, maincanvas):
         
         canvas.saveAsImage(r"E:\GitHub\render.tiff", None, "TIFF")
@@ -1646,6 +2325,7 @@ os.path.dirname(__file__), 'validation log.ui'))
 
 class ValidateFiles(QDialog,VAL_FORM_CLASS):
     validationPassed = QtCore.pyqtSignal(bool)
+    
     def __init__(self, collarfile, surveyfile, logfiles, dipsignNeg, parent=None):
         """Constructor."""
         super(ValidateFiles, self).__init__(parent)
@@ -1997,3 +2677,88 @@ class ValidateFiles(QDialog,VAL_FORM_CLASS):
             if zrange > 500:
                 self.printToLog("Warning: A  vertical spread of more than 500m between collars was detected")
                 self.warningsExist = True
+                
+ANL_FORM_CLASS, _ = uic.loadUiType(os.path.join(
+os.path.dirname(__file__), 'addnewlayer_dialog_base.ui'))
+
+class AddNewLayerDialog(QtGui.QDialog, ANL_FORM_CLASS):
+    #dialog to assist with creating a new blank layer to a section
+    def __init__(self, parent=None):
+        """Constructor."""
+        super(AddNewLayerDialog, self).__init__(parent)
+        # Set up the user interface from Designer.
+        # After setupUI you can access any designer object by doing
+        # self.<objectname>, and you can use autoconnect slots - see
+        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
+        # #widgets-and-dialogs-with-auto-connect
+        self.setupUi(self)
+        #set up parameters to store
+        self.lyrName = None
+        self.fields = QgsFields()
+        field = QgsField(name="id", type=QtCore.QVariant.Int, len=6 )
+        self.fields.append(field)
+        self.geometryType = QGis.WKBPoint
+        
+        self.cbxType.addItem("Text Data")
+        self.cbxType.addItem("Whole Number")
+        self.cbxType.addItem("Decimal Number")
+        #set up signals
+        self.rbnPoint.toggled.connect(self.setType)
+        self.rbnLine.toggled.connect(self.setType)
+        self.rbnPoly.toggled.connect(self.setType)
+        self.ledLyrName.textChanged.connect(self.setName)
+        self.btnAddAttribute.clicked.connect(self.addFields)
+        self.btnRemAttribute.clicked.connect(self.remFields)
+        self.cbxType.currentIndexChanged.connect(self.enablePrec)
+        
+    def setType(self):
+        if self.rbnLine.isChecked():
+            self.geometryType = QGis.WKBLineString
+        elif self.rbnPoint.isChecked():
+            self.geometryType = QGis.WKBPoint
+        elif self.rbnPoly.isChecked():
+            self.geometryType = QGis.WKBPolygon
+    def setName(self):
+        self.lyrName = self.ledLyrName.text()
+        
+    def enablePrec(self):
+        if self.cbxType.currentText() == "Decimal Number":
+            self.ledPrecision.setEnabled(True)
+        else:
+            self.ledPrecision.setEnabled(False)
+            
+    def addFields(self):
+        if self.cbxType.currentText() == "Text Data":
+            ftype = QtCore.QVariant.String
+        elif self.cbxType.currentText() == "Whole Number":
+            ftype = QtCore.QVariant.Int
+        elif self.cbxType.currentText() == "Decimal Number":
+            ftype = QtCore.QVariant.Double
+            
+        if self.cbxType == "Decimal Number":
+            fprec = int(self.ledPrecision.text())
+        else:
+            fprec = 0
+        
+        fname=self.ledAttName.text()
+        fwidth = int(self.ledWidth.text())
+            
+        field = QgsField(name=fname, type=ftype, len=fwidth, prec=fprec )
+        self.fields.append(field)
+        treeitem = QtGui.QTreeWidgetItem()
+        treeitem.setText(0, fname)
+        treeitem.setText(1, self.cbxType.currentText())
+        treeitem.setText(2, str(fwidth))
+        treeitem.setText(3, str(fprec))
+        self.AttributeView.addTopLevelItem(treeitem)
+        
+    def remFields(self):
+        treeitem = self.AttributeView.selectedItems()
+        
+        for item in treeitem:
+            fname = item.text(0)
+            idx = self.fields.indexFromName(fname)
+            self.fields.remove(idx)
+            trash = self.AttributeView.takeTopLevelItem(self.AttributeView.indexOfTopLevelItem(item))
+            del trash
+    

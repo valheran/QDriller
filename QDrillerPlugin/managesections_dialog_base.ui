@@ -29,7 +29,7 @@
     <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
    </property>
   </widget>
-  <widget class="QListWidget" name="lstSections">
+  <widget class="QTreeWidget" name="treeSections">
    <property name="geometry">
     <rect>
      <x>40</x>
@@ -38,6 +38,14 @@
      <height>341</height>
     </rect>
    </property>
+   <attribute name="headerVisible">
+    <bool>false</bool>
+   </attribute>
+   <column>
+    <property name="text">
+     <string notr="true">1</string>
+    </property>
+   </column>
   </widget>
   <widget class="QPushButton" name="btnDelete">
    <property name="geometry">
@@ -85,6 +93,26 @@
     </rect>
    </property>
    <layout class="QVBoxLayout" name="lytMessage"/>
+  </widget>
+  <widget class="QPushButton" name="btnDeleteLayer">
+   <property name="geometry">
+    <rect>
+     <x>260</x>
+     <y>180</y>
+     <width>121</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>11</pointsize>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>Delete Layer</string>
+   </property>
   </widget>
  </widget>
  <resources/>
