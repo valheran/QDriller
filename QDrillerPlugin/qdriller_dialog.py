@@ -981,6 +981,9 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.selDrillholes = []
         self.demPath = None
         self.useEnvelope = False
+        self.convertCoords = False
+        self.useBaseOther = True
+        self.baseOtherValue = None
         
         #set the crs using the same hardcode as in the section viewer
         self.crs= QgsCoordinateReferenceSystem()
@@ -1014,6 +1017,9 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.ledSecLength.textChanged.connect(lambda: self.setVars("seclength", self.ledSecLength.text()))
         self.ledDem.textChanged.connect(lambda: self.setVars("DEM", self.ledDem.text()))
         self.chkUseEnv.toggled.connect(self.setEnvelope)
+        #self.rbnUseBaseOther.toggled.connect(self.setUseBaseOther)
+        #self.gbxCoordConvert.toggled.connect(self.setConvertCoords)
+        self.ledBaseFromOther.textChanged.connect(lambda: self.setVars("baseFromOther", self.ledBaseFromOther.text()))
         
         #populate lists
         self.populateDHloglist()
@@ -1024,6 +1030,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         self.ledOriginX.textChanged.connect(self.showEnvelope)
         self.ledOriginY.textChanged.connect(self.showEnvelope)
         self.ledAzi.textChanged.connect(self.showEnvelope)
+        self.ledAzi.textChanged.connect(self.enableUseOrigin)
         self.ledSecLength.textChanged.connect(self.showEnvelope)
         
         self.buttonBox.rejected.connect(lambda: self.canvas.scene().removeItem(self.envRB))  #clean up rubber bands on close
@@ -1045,11 +1052,30 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
                 self.secLength = float(value)
             elif target == "DEM":
                 self.demPath = value
+            elif target == "baseFromOther":
+                self.baseOtherValue = float(value)
         except ValueError:
             pass
     def setEnvelope(self, value):
         self.useEnvelope = value
         
+    def setUseBaseOther(self, value):
+        self.useBaseOther = value
+    def setConvertCoords(self, value):
+        self.convertCoords = value
+    def enableUseOrigin(self):
+        if self.gbxCoordConvert.isChecked():
+            if 89 < self.secAzi < 91:
+                self.rbnBaseFromOrigin.setEnabled(True)
+            if 179 < self.secAzi < 181:
+                self.rbnBaseFromOrigin.setEnabled(True)
+            if 269 < self.secAzi < 171:
+                self.rbnBaseFromOrigin.setEnabled(True)
+            if 359 <= self.secAzi <=360:
+                self.rbnBaseFromOrigin.setEnabled(True)
+            if 0 <= self.secAzi <= 1:
+                self.rbnBaseFromOrigin.setEnabled(True)
+                
     def subsetDrillholes(self):
         #create the subset of drill XYZ to plot
         #pull Collar names from the selection list
@@ -1262,7 +1288,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
             geom = feat.geometry()
             start = geom.vertexAt(0)
             end = geom.vertexAt(1)
-            self. ledAzi.setText(str(round(start.azimuth(end), 0)))
+            self.ledAzi.setText(str(round(start.azimuth(end), 0)))
             self.ledSecLength.setText(str(round(math.sqrt(start.sqrDist(end)),0)))
             self.ledOriginX.setText(str(round(start.x())))
             self.ledOriginY.setText(str(round(start.y())))
@@ -1306,6 +1332,23 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
                 return
         #run the methods to draw the files
         self.subsetDrillholes()
+        #determine what base to use for the section coordinates
+        if self.gbxCoordConvert.isChecked():
+            if self.rbnBaseFromOrigin.isChecked():
+                if 0 <= self.secAzi <= 1:
+                    baseCoord = self.originY
+                elif 89<= self.secAzi <=91:
+                    baseCoord = self.originX
+                elif 179< self.secAzi <=181:
+                    baseCoord = self.originY
+                else:
+                    baseCoord = 0
+            elif self.rbnBaseFromOther.isChecked():
+                baseCoord = self.baseOtherValue
+        else:
+            #set base value to 0
+            baseCoord = 0
+            
         #create drill traces
         sectionLayers=[]
         outputlayer = os.path.normpath(r"{}\{}\{}_traces_S.shp".format(
@@ -1324,7 +1367,7 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
         secplane = [self.originX, self.originY, self.secAzi]
         QDUtils.writeTraceLayer(self.holes2plotXYZ, outputlayer, useEnvelope=self.useEnvelope,
                                 envelope=self.envWidth, plan=False, sectionplane=secplane, 
-                                loadcanvas=False, crs=self.crs)
+                                loadcanvas=False, crs=self.crs, base=baseCoord)
 
         # collect info for writing to section definition file
         sectionLayers.append(outputlayer)
@@ -1349,14 +1392,14 @@ class GenerateSection(QtGui.QDialog, GEN_FORM_CLASS):
             
             QDUtils.LogDrawer(self.holes2plotXYZ, logtarget, outputlayer, plan=False,
                                 useEnvelope=self.useEnvelope, envelope=self.envWidth,
-                                sectionplane=secplane, crs=self.crs, loadcanvas=False)
+                                sectionplane=secplane, crs=self.crs, loadcanvas=False, base=baseCoord)
             
             sectionLayers.append(outputlayer)
         
         if self.secAzi > 90:
-            secFacing = self.secAzi - 90
+            self.secFacing = self.secAzi - 90
         else:
-            secFacing = (self.secAzi +360) - 90
+            self.secFacing = (self.secAzi +360) - 90
             
         #create surface profile if requested
         if self.chkDem.isChecked():
@@ -1638,8 +1681,10 @@ class SectionFromDrawTool(QgsMapToolEmitPoint):
         self.rubberBand.show()
         
     def calculateExtents(self):
+        #consider setting so that it only uses the SW most point
         self.origX = self.startPoint.x()
         self.origY = self.startPoint.y()
+        #consider using only azimuth between 0 and 180
         self.azi = self.startPoint.azimuth(self.endPoint)
         self.length = math.sqrt(self.startPoint.sqrDist(self.endPoint))
         self.calcDone.emit()

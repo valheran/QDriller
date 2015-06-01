@@ -175,7 +175,8 @@ class IntervalCoordBuilder:
 
 class LogDrawer:
 #class to draw attributed traces of drillholes from tabular log data
-    def __init__(self, drillholedata, logfile, outlogfile, useEnvelope=False, envelope=None, plan=True, sectionplane=None, crs=None, loadcanvas=True):
+    def __init__(self, drillholedata, logfile, outlogfile, useEnvelope=False, envelope=None,
+                    plan=True, sectionplane=None, crs=None, loadcanvas=True, base=0):
         self.holecoords = drillholedata #set the XYZ coord data for the drillhole dataset
         self.logfile = logfile #path of the target logfile
         self.outlogfile = outlogfile  #path for output file
@@ -186,6 +187,7 @@ class LogDrawer:
         self.sectionplane = sectionplane
         self.useEnvelope = useEnvelope
         self.envelope = envelope
+        self.base = base
         self.logBuilder()
         
     def createEmptyLog(self):
@@ -247,7 +249,7 @@ class LogDrawer:
                     #create layers in plan view
                         logtrace = planGeomBuilder(logresultinterval)
                     else:
-                        builder = SectionGeomBuilder(logresultinterval, self.sectionplane, self.envelope, self.useEnvelope)
+                        builder = SectionGeomBuilder(logresultinterval, self.sectionplane, self.envelope, self.useEnvelope, self.base)
                         if builder.isValid:
                             logtrace = builder.linestring
                         else:
@@ -327,11 +329,12 @@ def planGeomBuilder(coordlist):
     return linestring   
     
 class SectionGeomBuilder:
-    def __init__(self, coordlist, sectionplane, envelope, useEnvelope):
+    def __init__(self, coordlist, sectionplane, envelope, useEnvelope, base):
         self.coordlist = coordlist
         self.sectionplane = sectionplane
         self.useEnvelope = useEnvelope
         self.envelope = envelope
+        self.base = base
         self.isValid = True
         self.linestring = self.geomBuilder()
         
@@ -351,11 +354,13 @@ class SectionGeomBuilder:
             #calculate the angle between the point and the plane 90- azi to set radians to start at north
             beta = alpha - math.radians(90 - self.sectionplane[2] )
             #calculate the along section coord using beta and distance from origin
-            xS = math.cos(beta) * dist
-            #NOTE the "normal distance" to the point will be sin(beta)*dist. this may be usefulto exploit for making envelopes
+            xS = (math.cos(beta) * dist) + self.base
+             #NOTE the "normal distance" to the point will be sin(beta)*dist. this may be usefulto exploit for making envelopes
             # ie could use as a screening criteria and not include any nodes that are too far. may need to be careful to handle
             # empty geometries that will be made in the logs, perhaps with some sort of flagging system
             #determine if envelope cutting is enables, then test the envelope
+            ## Adding an arbitrary baseline here could allow for coordinates to represent real coordinates if the axis aligns with the 
+            #section plane.
             
             if self.useEnvelope:
                 
@@ -474,7 +479,7 @@ def calcXYZ(drillholes, isNeg):
         #print "drillhole %s built" % (holes)
     return drillholeXYZ
     
-def writeTraceLayer(drillXYZ, outfile, useEnvelope=False, envelope=None, plan=True, sectionplane=None, loadcanvas=True, crs=None): 
+def writeTraceLayer(drillXYZ, outfile, useEnvelope=False, envelope=None, plan=True, sectionplane=None, loadcanvas=True, crs=None, base=0): 
     #create a layer to hold plan drill traces
     crsString = crs.authid()
     uri = "LineString?field=HoleID:string&crs={}".format(crsString)
@@ -489,7 +494,7 @@ def writeTraceLayer(drillXYZ, outfile, useEnvelope=False, envelope=None, plan=Tr
         if plan:
             trace = planGeomBuilder(holedat)
         else:
-            builder = SectionGeomBuilder(holedat, sectionplane, envelope, useEnvelope)
+            builder = SectionGeomBuilder(holedat, sectionplane, envelope, useEnvelope, base)
             if builder.isValid:
                 trace = builder.linestring
             else:
